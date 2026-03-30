@@ -3,20 +3,57 @@
   "config": {
     "step": {
       "user": {
-        "title": "Create Smart Solar Manager",
-        "description": "Map your forecast and energy entities. You can tune strategy later in options.",
+        "title": "General Settings",
+        "description": "Step 1 of 4: Basic setup for this Smart Solar Manager profile.",
         "data": {
           "name": "Name",
-          "scan_interval_minutes": "Refresh interval (minutes)",
+          "scan_interval_minutes": "Refresh interval (minutes)"
+        },
+        "data_description": {
+          "name": "Friendly profile name shown in Home Assistant.",
+          "scan_interval_minutes": "How often the optimizer recalculates recommendations. Suggested: 10-30 minutes."
+        }
+      },
+      "forecast": {
+        "title": "Forecast Inputs",
+        "description": "Step 2 of 4: Connect Forecast.Solar entities. At least one field is required.",
+        "data": {
           "forecast_today_entity": "Forecast today entity (kWh)",
-          "forecast_next_hour_entity": "Forecast next hour entity (W)",
+          "forecast_next_hour_entity": "Forecast next hour entity (W)"
+        },
+        "data_description": {
+          "forecast_today_entity": "Example: sensor.forecast_solar_estimated_energy_production_today. Use the entity_id from Developer Tools -> States.",
+          "forecast_next_hour_entity": "Example: sensor.forecast_solar_next_hour. Helps short-term load shifting decisions."
+        }
+      },
+      "energy": {
+        "title": "Energy Signals",
+        "description": "Step 3 of 4: Add live power and battery entities used by the optimizer.",
+        "data": {
           "pv_power_entity": "PV power entity (W)",
           "load_power_entity": "Load power entity (W)",
           "battery_soc_entity": "Battery state of charge entity (%)",
           "grid_import_entity": "Grid import entity (W)",
-          "grid_export_entity": "Grid export entity (W)",
+          "grid_export_entity": "Grid export entity (W)"
+        },
+        "data_description": {
+          "pv_power_entity": "Current solar production power. Example: sensor.pv_power.",
+          "load_power_entity": "Current house load/consumption power. Example: sensor.load_power.",
+          "battery_soc_entity": "Battery charge level as percentage (0-100).",
+          "grid_import_entity": "Current power imported from grid. Positive watts preferred.",
+          "grid_export_entity": "Current power exported to grid. Positive watts preferred."
+        }
+      },
+      "control": {
+        "title": "Control and Overrides",
+        "description": "Step 4 of 4: Optional control entities for automation mode.",
+        "data": {
           "manual_override_entity": "Manual override boolean entity (optional)",
           "controllable_devices": "Controllable device entities (comma-separated, optional)"
+        },
+        "data_description": {
+          "manual_override_entity": "If this boolean is ON, automatic action execution is blocked unless forced.",
+          "controllable_devices": "List switch/climate/other entities to control during solar surplus. Example: switch.pool_pump, switch.water_heater"
         }
       }
     },
@@ -42,6 +79,16 @@
           "goal_self_consumption_weight": "Self-consumption weight",
           "goal_battery_health_weight": "Battery health weight",
           "goal_grid_weight": "Grid strategy weight"
+        },
+        "data_description": {
+          "auto_control_enabled": "Allows execute_plan to apply actions automatically when conditions are met.",
+          "dry_run": "When enabled, actions are simulated and no real service calls are executed.",
+          "battery_min_soc": "Minimum battery percentage to preserve as reserve.",
+          "grid_price": "Estimated import price used for savings calculations.",
+          "goal_cost_weight": "Higher value prioritizes reducing electricity bill.",
+          "goal_self_consumption_weight": "Higher value prioritizes using local solar energy directly.",
+          "goal_battery_health_weight": "Higher value reduces aggressive battery cycling.",
+          "goal_grid_weight": "Higher value emphasizes grid import/export balancing behavior."
         }
       }
     }

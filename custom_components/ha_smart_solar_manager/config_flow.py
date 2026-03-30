@@ -45,9 +45,14 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Smart Solar Manager."""
 
     VERSION = 1
+    _draft_data: dict[str, Any]
+
+    def __init__(self) -> None:
+        """Initialize config flow."""
+        self._draft_data = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
-        """Handle the initial step."""
+        """Handle general settings step."""
         if self._async_current_entries():
             return self.async_abort(reason="already_configured")
 
@@ -55,59 +60,159 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             interval = int(user_input[CONF_SCAN_INTERVAL_MINUTES])
-            forecast_today = user_input.get(CONF_FORECAST_TODAY_ENTITY, "").strip()
-            forecast_next_hour = user_input.get(CONF_FORECAST_NEXT_HOUR_ENTITY, "").strip()
 
             if interval < 5 or interval > 120:
                 errors["base"] = "invalid_interval"
-            elif not forecast_today and not forecast_next_hour:
-                errors["base"] = "forecast_required"
             else:
-                controllable_raw = user_input.get(CONF_CONTROLLABLE_DEVICES, "")
-                controllable = [
-                    entity.strip()
-                    for entity in controllable_raw.split(",")
-                    if entity.strip()
-                ]
-
-                payload = {
-                    CONF_NAME: user_input[CONF_NAME],
-                    CONF_SCAN_INTERVAL_MINUTES: interval,
-                    CONF_FORECAST_TODAY_ENTITY: forecast_today,
-                    CONF_FORECAST_NEXT_HOUR_ENTITY: forecast_next_hour,
-                    CONF_PV_POWER_ENTITY: user_input.get(CONF_PV_POWER_ENTITY, "").strip(),
-                    CONF_LOAD_POWER_ENTITY: user_input.get(CONF_LOAD_POWER_ENTITY, "").strip(),
-                    CONF_BATTERY_SOC_ENTITY: user_input.get(CONF_BATTERY_SOC_ENTITY, "").strip(),
-                    CONF_GRID_IMPORT_ENTITY: user_input.get(CONF_GRID_IMPORT_ENTITY, "").strip(),
-                    CONF_GRID_EXPORT_ENTITY: user_input.get(CONF_GRID_EXPORT_ENTITY, "").strip(),
-                    CONF_MANUAL_OVERRIDE_ENTITY: user_input.get(
-                        CONF_MANUAL_OVERRIDE_ENTITY, ""
-                    ).strip(),
-                    CONF_CONTROLLABLE_DEVICES: controllable,
-                }
-
-                return self.async_create_entry(title=payload[CONF_NAME], data=payload)
+                self._draft_data[CONF_NAME] = user_input[CONF_NAME]
+                self._draft_data[CONF_SCAN_INTERVAL_MINUTES] = interval
+                return await self.async_step_forecast()
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
+                vol.Required(
+                    CONF_NAME,
+                    default=self._draft_data.get(CONF_NAME, DEFAULT_NAME),
+                ): str,
                 vol.Required(
                     CONF_SCAN_INTERVAL_MINUTES,
-                    default=DEFAULT_SCAN_INTERVAL_MINUTES,
+                    default=self._draft_data.get(
+                        CONF_SCAN_INTERVAL_MINUTES,
+                        DEFAULT_SCAN_INTERVAL_MINUTES,
+                    ),
                 ): int,
-                vol.Optional(CONF_FORECAST_TODAY_ENTITY, default=""): str,
-                vol.Optional(CONF_FORECAST_NEXT_HOUR_ENTITY, default=""): str,
-                vol.Optional(CONF_PV_POWER_ENTITY, default=""): str,
-                vol.Optional(CONF_LOAD_POWER_ENTITY, default=""): str,
-                vol.Optional(CONF_BATTERY_SOC_ENTITY, default=""): str,
-                vol.Optional(CONF_GRID_IMPORT_ENTITY, default=""): str,
-                vol.Optional(CONF_GRID_EXPORT_ENTITY, default=""): str,
-                vol.Optional(CONF_MANUAL_OVERRIDE_ENTITY, default=""): str,
-                vol.Optional(CONF_CONTROLLABLE_DEVICES, default=""): str,
             }
         )
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+
+    async def async_step_forecast(self, user_input: dict[str, Any] | None = None):
+        """Handle forecast fields group."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            forecast_today = user_input.get(CONF_FORECAST_TODAY_ENTITY, "").strip()
+            forecast_next_hour = user_input.get(CONF_FORECAST_NEXT_HOUR_ENTITY, "").strip()
+
+            if not forecast_today and not forecast_next_hour:
+                errors["base"] = "forecast_required"
+            else:
+                self._draft_data[CONF_FORECAST_TODAY_ENTITY] = forecast_today
+                self._draft_data[CONF_FORECAST_NEXT_HOUR_ENTITY] = forecast_next_hour
+                return await self.async_step_energy()
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_FORECAST_TODAY_ENTITY,
+                    default=self._draft_data.get(CONF_FORECAST_TODAY_ENTITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_FORECAST_NEXT_HOUR_ENTITY,
+                    default=self._draft_data.get(CONF_FORECAST_NEXT_HOUR_ENTITY, ""),
+                ): str,
+            }
+        )
+        return self.async_show_form(step_id="forecast", data_schema=schema, errors=errors)
+
+    async def async_step_energy(self, user_input: dict[str, Any] | None = None):
+        """Handle energy entity fields group."""
+        if user_input is not None:
+            self._draft_data[CONF_PV_POWER_ENTITY] = user_input.get(
+                CONF_PV_POWER_ENTITY, ""
+            ).strip()
+            self._draft_data[CONF_LOAD_POWER_ENTITY] = user_input.get(
+                CONF_LOAD_POWER_ENTITY, ""
+            ).strip()
+            self._draft_data[CONF_BATTERY_SOC_ENTITY] = user_input.get(
+                CONF_BATTERY_SOC_ENTITY, ""
+            ).strip()
+            self._draft_data[CONF_GRID_IMPORT_ENTITY] = user_input.get(
+                CONF_GRID_IMPORT_ENTITY, ""
+            ).strip()
+            self._draft_data[CONF_GRID_EXPORT_ENTITY] = user_input.get(
+                CONF_GRID_EXPORT_ENTITY, ""
+            ).strip()
+            return await self.async_step_control()
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_PV_POWER_ENTITY,
+                    default=self._draft_data.get(CONF_PV_POWER_ENTITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_LOAD_POWER_ENTITY,
+                    default=self._draft_data.get(CONF_LOAD_POWER_ENTITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_BATTERY_SOC_ENTITY,
+                    default=self._draft_data.get(CONF_BATTERY_SOC_ENTITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_GRID_IMPORT_ENTITY,
+                    default=self._draft_data.get(CONF_GRID_IMPORT_ENTITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_GRID_EXPORT_ENTITY,
+                    default=self._draft_data.get(CONF_GRID_EXPORT_ENTITY, ""),
+                ): str,
+            }
+        )
+        return self.async_show_form(step_id="energy", data_schema=schema)
+
+    async def async_step_control(self, user_input: dict[str, Any] | None = None):
+        """Handle control and override fields group."""
+        if user_input is not None:
+            self._draft_data[CONF_MANUAL_OVERRIDE_ENTITY] = user_input.get(
+                CONF_MANUAL_OVERRIDE_ENTITY, ""
+            ).strip()
+            controllable_raw = user_input.get(CONF_CONTROLLABLE_DEVICES, "")
+            self._draft_data[CONF_CONTROLLABLE_DEVICES] = [
+                entity.strip() for entity in controllable_raw.split(",") if entity.strip()
+            ]
+
+            payload = {
+                CONF_NAME: self._draft_data[CONF_NAME],
+                CONF_SCAN_INTERVAL_MINUTES: self._draft_data[CONF_SCAN_INTERVAL_MINUTES],
+                CONF_FORECAST_TODAY_ENTITY: self._draft_data.get(
+                    CONF_FORECAST_TODAY_ENTITY, ""
+                ),
+                CONF_FORECAST_NEXT_HOUR_ENTITY: self._draft_data.get(
+                    CONF_FORECAST_NEXT_HOUR_ENTITY, ""
+                ),
+                CONF_PV_POWER_ENTITY: self._draft_data.get(CONF_PV_POWER_ENTITY, ""),
+                CONF_LOAD_POWER_ENTITY: self._draft_data.get(CONF_LOAD_POWER_ENTITY, ""),
+                CONF_BATTERY_SOC_ENTITY: self._draft_data.get(
+                    CONF_BATTERY_SOC_ENTITY, ""
+                ),
+                CONF_GRID_IMPORT_ENTITY: self._draft_data.get(CONF_GRID_IMPORT_ENTITY, ""),
+                CONF_GRID_EXPORT_ENTITY: self._draft_data.get(CONF_GRID_EXPORT_ENTITY, ""),
+                CONF_MANUAL_OVERRIDE_ENTITY: self._draft_data.get(
+                    CONF_MANUAL_OVERRIDE_ENTITY, ""
+                ),
+                CONF_CONTROLLABLE_DEVICES: self._draft_data.get(
+                    CONF_CONTROLLABLE_DEVICES, []
+                ),
+            }
+            return self.async_create_entry(title=payload[CONF_NAME], data=payload)
+
+        existing_devices = self._draft_data.get(CONF_CONTROLLABLE_DEVICES, [])
+        existing_devices_text = ", ".join(existing_devices)
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_MANUAL_OVERRIDE_ENTITY,
+                    default=self._draft_data.get(CONF_MANUAL_OVERRIDE_ENTITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_CONTROLLABLE_DEVICES,
+                    default=existing_devices_text,
+                ): str,
+            }
+        )
+        return self.async_show_form(step_id="control", data_schema=schema)
 
     @staticmethod
     @callback
