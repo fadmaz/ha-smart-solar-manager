@@ -2,7 +2,6 @@
   "name": "HA Smart Solar Manager",
   "content_in_root": false,
   "render_readme": true,
-  "homeassistant": ">=2024.8.0",
-  "iot_class": "local_polling",
-  "domains": ["sensor"]
+  "homeassistant": "2024.8.0",
+  "domains": ["ha_smart_solar_manager"]
 }
