@@ -1,0 +1,49 @@
+{
+  "title": "HA Smart Solar Manager",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Create Smart Solar Manager",
+        "description": "Map your forecast and energy entities. You can tune strategy later in options.",
+        "data": {
+          "name": "Name",
+          "scan_interval_minutes": "Refresh interval (minutes)",
+          "forecast_today_entity": "Forecast today entity (kWh)",
+          "forecast_next_hour_entity": "Forecast next hour entity (W)",
+          "pv_power_entity": "PV power entity (W)",
+          "load_power_entity": "Load power entity (W)",
+          "battery_soc_entity": "Battery state of charge entity (%)",
+          "grid_import_entity": "Grid import entity (W)",
+          "grid_export_entity": "Grid export entity (W)",
+          "manual_override_entity": "Manual override boolean entity (optional)",
+          "controllable_devices": "Controllable device entities (comma-separated, optional)"
+        }
+      }
+    },
+    "error": {
+      "forecast_required": "At least one forecast entity is required",
+      "invalid_interval": "Interval must be between 5 and 120 minutes"
+    },
+    "abort": {
+      "already_configured": "Smart Solar Manager is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Smart Solar Strategy Options",
+        "description": "Tune automation and optimization priorities.",
+        "data": {
+          "auto_control_enabled": "Enable automatic control",
+          "dry_run": "Dry-run mode (no real device actions)",
+          "battery_min_soc": "Minimum battery reserve (%)",
+          "grid_price": "Grid energy price (per kWh)",
+          "goal_cost_weight": "Cost reduction weight",
+          "goal_self_consumption_weight": "Self-consumption weight",
+          "goal_battery_health_weight": "Battery health weight",
+          "goal_grid_weight": "Grid strategy weight"
+        }
+      }
+    }
+  }
+}
