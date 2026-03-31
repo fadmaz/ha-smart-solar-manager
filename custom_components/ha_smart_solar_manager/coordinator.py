@@ -17,6 +17,7 @@ from .const import (
     CONF_BATTERY_SOC_ENTITY,
     CONF_CONTROLLABLE_DEVICES,
     CONF_FORECAST_NEXT_HOUR_ENTITY,
+    CONF_FORECAST_NOW_ENTITY,
     CONF_FORECAST_REMAINING_TODAY_ENTITY,
     CONF_FORECAST_TODAY_ENTITY,
     CONF_FORECAST_TOMORROW_ENTITY,
@@ -163,6 +164,7 @@ class SmartSolarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             CONF_FORECAST_NEXT_HOUR_ENTITY: await self._async_resolve_entity_id(
                 CONF_FORECAST_NEXT_HOUR_ENTITY
             ),
+            CONF_FORECAST_NOW_ENTITY: await self._async_resolve_entity_id(CONF_FORECAST_NOW_ENTITY),
             CONF_FORECAST_TOMORROW_ENTITY: await self._async_resolve_entity_id(CONF_FORECAST_TOMORROW_ENTITY),
             CONF_PV_POWER_ENTITY: await self._async_resolve_entity_id(CONF_PV_POWER_ENTITY),
             CONF_LOAD_POWER_ENTITY: await self._async_resolve_entity_id(CONF_LOAD_POWER_ENTITY),
@@ -196,6 +198,7 @@ class SmartSolarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "forecast_next_hour_w": self._state_power_w(
                 resolved_entities[CONF_FORECAST_NEXT_HOUR_ENTITY]
             ),
+            "forecast_now_w": self._state_power_w(resolved_entities[CONF_FORECAST_NOW_ENTITY]),
             "forecast_tomorrow_kwh": self._state_energy_kwh(
                 resolved_entities[CONF_FORECAST_TOMORROW_ENTITY]
             ),

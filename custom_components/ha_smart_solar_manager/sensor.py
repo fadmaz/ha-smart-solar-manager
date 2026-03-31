@@ -82,6 +82,20 @@ SENSORS: tuple[SmartSolarSensorDescription, ...] = (
         icon="mdi:check-decagram",
         state_class=SensorStateClass.MEASUREMENT,
     ),
+    SmartSolarSensorDescription(
+        key="load_power_w",
+        name="Load Power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        icon="mdi:home-lightning-bolt",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SmartSolarSensorDescription(
+        key="forecast_now_w",
+        name="Forecast Production Now",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        icon="mdi:weather-sunny",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
 )
 
 
@@ -173,6 +187,12 @@ class SmartSolarSensor(CoordinatorEntity[SmartSolarCoordinator], SensorEntity):
         if self.entity_description.key == "confidence_score":
             return recommendation.get("confidence_score", 0)
 
+        if self.entity_description.key == "load_power_w":
+            return inputs.get("load_power_w")
+
+        if self.entity_description.key == "forecast_now_w":
+            return inputs.get("forecast_now_w")
+
         return None
 
     @property
@@ -190,6 +210,7 @@ class SmartSolarSensor(CoordinatorEntity[SmartSolarCoordinator], SensorEntity):
             "actions": recommendation.get("actions", []),
             "weights": recommendation.get("weights", {}),
             "weighted_signal": recommendation.get("weighted_signal", 0),
+            "surplus_source": recommendation.get("surplus_source", "unknown"),
             "inputs": inputs,
             "input_sources": input_sources,
             "missing_inputs": missing_inputs,

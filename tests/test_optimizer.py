@@ -108,6 +108,7 @@ def test_build_recommendation_conserves_battery_low_forecast() -> None:
     result = build_recommendation(
         inputs={
             "forecast_today_kwh": 1,
+            "forecast_remaining_today_kwh": 0.3,
             "forecast_next_hour_w": 100,
             "pv_power_w": 500,
             "load_power_w": 400,
@@ -272,6 +273,7 @@ def test_build_recommendation_confidence_score_complete_inputs() -> None:
             "forecast_today_kwh": 7.0,
             "forecast_remaining_today_kwh": 4.0,
             "forecast_next_hour_w": 900,
+            "forecast_now_w": 950,
             "pv_power_w": 1200,
             "load_power_w": 800,
             "battery_soc": 65,
@@ -316,4 +318,4 @@ def test_build_recommendation_confidence_score_partial_inputs() -> None:
         controllable_devices=[],
     )
 
-    assert result["confidence_score"] == 25
+    assert result["confidence_score"] == 22

@@ -15,6 +15,7 @@ from .const import (
     CONF_BATTERY_SOC_ENTITY,
     CONF_CONTROLLABLE_DEVICES,
     CONF_FORECAST_NEXT_HOUR_ENTITY,
+    CONF_FORECAST_NOW_ENTITY,
     CONF_FORECAST_REMAINING_TODAY_ENTITY,
     CONF_FORECAST_TODAY_ENTITY,
     CONF_FORECAST_TOMORROW_ENTITY,
@@ -60,6 +61,7 @@ FORECAST_ENTITY_DEFAULTS = {
     CONF_FORECAST_REMAINING_TODAY_ENTITY: "sensor.energy_production_today_remaining",
     CONF_FORECAST_NEXT_HOUR_ENTITY: "sensor.energy_next_hour",
     CONF_FORECAST_TOMORROW_ENTITY: "sensor.energy_production_tomorrow",
+    CONF_FORECAST_NOW_ENTITY: "sensor.power_production_now",
 }
 
 
@@ -385,6 +387,9 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._draft_data[CONF_FORECAST_TOMORROW_ENTITY] = user_input.get(
                     CONF_FORECAST_TOMORROW_ENTITY, ""
                 )
+                self._draft_data[CONF_FORECAST_NOW_ENTITY] = user_input.get(
+                    CONF_FORECAST_NOW_ENTITY, ""
+                )
                 return await self.async_step_energy()
 
         schema = vol.Schema(
@@ -410,6 +415,12 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(
                     CONF_FORECAST_TOMORROW_ENTITY,
                     default=forecast_defaults[CONF_FORECAST_TOMORROW_ENTITY],
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Optional(
+                    CONF_FORECAST_NOW_ENTITY,
+                    default=forecast_defaults[CONF_FORECAST_NOW_ENTITY],
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
@@ -494,6 +505,7 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_FORECAST_TODAY_ENTITY: self._draft_data.get(CONF_FORECAST_TODAY_ENTITY, ""),
                 CONF_FORECAST_REMAINING_TODAY_ENTITY: self._draft_data.get(CONF_FORECAST_REMAINING_TODAY_ENTITY, ""),
                 CONF_FORECAST_NEXT_HOUR_ENTITY: self._draft_data.get(CONF_FORECAST_NEXT_HOUR_ENTITY, ""),
+                CONF_FORECAST_NOW_ENTITY: self._draft_data.get(CONF_FORECAST_NOW_ENTITY, ""),
                 CONF_FORECAST_TOMORROW_ENTITY: self._draft_data.get(CONF_FORECAST_TOMORROW_ENTITY, ""),
                 CONF_PV_POWER_ENTITY: self._draft_data.get(CONF_PV_POWER_ENTITY, ""),
                 CONF_LOAD_POWER_ENTITY: self._draft_data.get(CONF_LOAD_POWER_ENTITY, ""),

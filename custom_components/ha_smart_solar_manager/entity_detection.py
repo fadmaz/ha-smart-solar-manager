@@ -9,6 +9,7 @@ from homeassistant.helpers import entity_registry as er
 from .const import (
     CONF_BATTERY_SOC_ENTITY,
     CONF_FORECAST_NEXT_HOUR_ENTITY,
+    CONF_FORECAST_NOW_ENTITY,
     CONF_FORECAST_REMAINING_TODAY_ENTITY,
     CONF_FORECAST_TODAY_ENTITY,
     CONF_FORECAST_TOMORROW_ENTITY,
@@ -23,6 +24,7 @@ FORECAST_ENTITY_DEFAULTS = {
     CONF_FORECAST_REMAINING_TODAY_ENTITY: "sensor.energy_production_today_remaining",
     CONF_FORECAST_NEXT_HOUR_ENTITY: "sensor.energy_next_hour",
     CONF_FORECAST_TOMORROW_ENTITY: "sensor.energy_production_tomorrow",
+    CONF_FORECAST_NOW_ENTITY: "sensor.power_production_now",
 }
 
 
