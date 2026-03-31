@@ -6,6 +6,8 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-03-31
+
 ### Added
 
 - **optimizer.py** - Added `confidence_score` to recommendation payload (0-100) based on input completeness.
@@ -40,7 +42,7 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 ### Changed
 
 - **sensor.py** - `extra_state_attributes` restricted to the `mode` sensor only; all other sensors now return an empty dict, reducing HA database write volume significantly.
-- ****init**.py** - Removed `hass.data[DOMAIN]["logger"]` storage; coordinator uses its own module-level logger.
+- \***\*init**.py\*\* - Removed `hass.data[DOMAIN]["logger"]` storage; coordinator uses its own module-level logger.
 
 ## [0.10.0] - 2026-03-31
 
