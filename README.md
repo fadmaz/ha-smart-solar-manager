@@ -9,10 +9,11 @@ Smart solar, battery, and grid energy management for Home Assistant using Foreca
 - Uses user-selected entities so it stays generic across inverter and device integrations.
 - Exposes smart sensors for dashboard cards and automation logic.
 
-## Current State (v0.5.0)
+## Current State (v0.6.0)
 
 - Config flow for mapping Forecast.Solar and energy entities.
 - Exact-match auto-fill for the four supported forecast sensors when they exist.
+- Config UI labels are unit-neutral, while supported units are normalized automatically.
 - Options flow for goal weights and safety controls.
 - Optimization output modes:
   - `protect_battery`
@@ -43,11 +44,14 @@ Add the integration from Home Assistant UI:
 1. Go to Settings -> Devices & Services.
 2. Add Integration -> `HA Smart Solar Manager`.
 3. Map at least one forecast entity:
-   - `Forecast today entity (kWh)` or
-   - `Forecast next hour entity (W)`
+
+- `Forecast today entity` or
+- `Forecast next hour entity`
+
 4. Optionally map additional forecast entities:
-   - `Forecast remaining today entity (kWh)`
-   - `Forecast tomorrow entity (kWh)`
+
+- `Forecast remaining today entity`
+- `Forecast tomorrow entity`
 
 - These fields auto-fill when Home Assistant has these exact entities:
   `sensor.energy_production_today`, `sensor.energy_production_today_remaining`, `sensor.energy_next_hour`, `sensor.energy_production_tomorrow`

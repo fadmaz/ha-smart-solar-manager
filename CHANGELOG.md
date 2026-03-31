@@ -6,6 +6,13 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-31
+
+### Changed
+
+- Config flow field labels no longer ask for specific units like `W` or `kWh`.
+- Forecast and energy field descriptions remain unit-aware and explain that supported units are converted automatically.
+
 ## [0.5.0] - 2026-03-31
 
 ### Added
