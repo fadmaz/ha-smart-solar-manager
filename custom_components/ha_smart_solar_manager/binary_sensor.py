@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -16,37 +20,32 @@ from .coordinator import SmartSolarCoordinator
 
 
 @dataclass(frozen=True)
-class SmartSolarBinarySensorDescription:
+class SmartSolarBinarySensorDescription(BinarySensorEntityDescription):
     """Description for a Smart Solar Manager binary sensor."""
-
-    key: str
-    name: str
-    icon: str = "mdi:help-circle"
-    device_class: BinarySensorDeviceClass | None = None
 
 
 BINARY_SENSORS: tuple[SmartSolarBinarySensorDescription, ...] = (
     SmartSolarBinarySensorDescription(
-        "action_needed",
-        "Action Needed",
-        "mdi:alert-circle",
-        BinarySensorDeviceClass.PROBLEM,
+        key="action_needed",
+        name="Action Needed",
+        icon="mdi:alert-circle",
+        device_class=BinarySensorDeviceClass.PROBLEM,
     ),
     SmartSolarBinarySensorDescription(
-        "battery_low",
-        "Battery Low",
-        "mdi:battery-alert",
-        BinarySensorDeviceClass.BATTERY,
+        key="battery_low",
+        name="Battery Low",
+        icon="mdi:battery-alert",
+        device_class=BinarySensorDeviceClass.BATTERY,
     ),
     SmartSolarBinarySensorDescription(
-        "high_solar_production",
-        "High Solar Production",
-        "mdi:solar-power-variant",
+        key="high_solar_production",
+        name="High Solar Production",
+        icon="mdi:solar-power-variant",
     ),
     SmartSolarBinarySensorDescription(
-        "high_grid_import",
-        "High Grid Import",
-        "mdi:transmission-tower-import",
+        key="high_grid_import",
+        name="High Grid Import",
+        icon="mdi:transmission-tower-import",
     ),
 )
 
@@ -59,7 +58,10 @@ async def async_setup_entry(
     """Set up Smart Solar binary sensor entities."""
     coordinator: SmartSolarCoordinator = hass.data[DOMAIN]["entries"][entry.entry_id]
     async_add_entities(
-        SmartSolarBinarySensor(coordinator, entry, description) for description in BINARY_SENSORS
+        [
+            SmartSolarBinarySensor(coordinator, entry, description)
+            for description in BINARY_SENSORS
+        ]
     )
 
 
@@ -67,6 +69,8 @@ class SmartSolarBinarySensor(CoordinatorEntity[SmartSolarCoordinator], BinarySen
     """Smart Solar Manager binary sensor entity."""
 
     _attr_has_entity_name = True
+    _attr_entity_registry_enabled_default = True
+    entity_description: SmartSolarBinarySensorDescription
 
     def __init__(
         self,
@@ -74,12 +78,9 @@ class SmartSolarBinarySensor(CoordinatorEntity[SmartSolarCoordinator], BinarySen
         entry: ConfigEntry,
         description: SmartSolarBinarySensorDescription,
     ) -> None:
-        super().__init__(coordinator)
         self.entity_description = description
+        super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
-        self._attr_name = description.name
-        self._attr_icon = description.icon
-        self._attr_device_class = description.device_class
         self._entry = entry
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},

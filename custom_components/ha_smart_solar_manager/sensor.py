@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant
@@ -18,72 +22,65 @@ from .coordinator import SmartSolarCoordinator
 
 
 @dataclass(frozen=True)
-class SmartSolarSensorDescription:
+class SmartSolarSensorDescription(SensorEntityDescription):
     """Description for a Smart Solar Manager sensor."""
-
-    key: str
-    name: str
-    unit: str | None = None
-    icon: str | None = None
-    state_class: SensorStateClass | None = None
 
 
 SENSORS: tuple[SmartSolarSensorDescription, ...] = (
-    SmartSolarSensorDescription("mode", "Smart Solar Mode", icon="mdi:lightbulb"),
-    SmartSolarSensorDescription("reason", "Smart Solar Reason", icon="mdi:information"),
+    SmartSolarSensorDescription(key="mode", name="Mode", icon="mdi:lightbulb"),
+    SmartSolarSensorDescription(key="reason", name="Reason", icon="mdi:information"),
     SmartSolarSensorDescription(
-        "next_action",
-        "Smart Solar Next Action",
+        key="next_action",
+        name="Next Action",
         icon="mdi:play-circle",
     ),
     SmartSolarSensorDescription(
-        "estimated_savings",
-        "Smart Solar Estimated Savings (Hour)",
-        None,
-        "mdi:currency-usd",
-        SensorStateClass.MEASUREMENT,
+        key="estimated_savings",
+        name="Estimated Savings (Hour)",
+        icon="mdi:currency-usd",
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SmartSolarSensorDescription(
-        "solar_surplus_w",
-        "Smart Solar Surplus",
-        UnitOfPower.WATT,
-        "mdi:solar-power",
-        SensorStateClass.MEASUREMENT,
+        key="solar_surplus_w",
+        name="Solar Surplus",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        icon="mdi:solar-power",
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SmartSolarSensorDescription(
-        "battery_soc",
-        "Smart Solar Battery SoC",
-        "%",
-        "mdi:battery",
-        SensorStateClass.MEASUREMENT,
+        key="battery_soc",
+        name="Battery SoC",
+        native_unit_of_measurement="%",
+        icon="mdi:battery",
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SmartSolarSensorDescription(
-        "grid_import_w",
-        "Smart Solar Grid Import",
-        UnitOfPower.WATT,
-        "mdi:transmission-tower-import",
-        SensorStateClass.MEASUREMENT,
+        key="grid_import_w",
+        name="Grid Import",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        icon="mdi:transmission-tower-import",
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SmartSolarSensorDescription(
-        "pv_power_w",
-        "Smart Solar PV Power",
-        UnitOfPower.WATT,
-        "mdi:solar-power-variant",
-        SensorStateClass.MEASUREMENT,
+        key="pv_power_w",
+        name="PV Power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        icon="mdi:solar-power-variant",
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SmartSolarSensorDescription(
-        "efficiency_score",
-        "Smart Solar Efficiency Score",
-        "%",
-        "mdi:gauge",
-        SensorStateClass.MEASUREMENT,
+        key="efficiency_score",
+        name="Efficiency Score",
+        native_unit_of_measurement="%",
+        icon="mdi:gauge",
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SmartSolarSensorDescription(
-        "confidence_score",
-        "Smart Solar Confidence Score",
-        "%",
-        "mdi:check-decagram",
-        SensorStateClass.MEASUREMENT,
+        key="confidence_score",
+        name="Confidence Score",
+        native_unit_of_measurement="%",
+        icon="mdi:check-decagram",
+        state_class=SensorStateClass.MEASUREMENT,
     ),
 )
 
@@ -96,7 +93,7 @@ async def async_setup_entry(
     """Set up Smart Solar sensor entities."""
     coordinator: SmartSolarCoordinator = hass.data[DOMAIN]["entries"][entry.entry_id]
     async_add_entities(
-        SmartSolarSensor(coordinator, entry, description) for description in SENSORS
+        [SmartSolarSensor(coordinator, entry, description) for description in SENSORS]
     )
 
 
@@ -104,6 +101,8 @@ class SmartSolarSensor(CoordinatorEntity[SmartSolarCoordinator], SensorEntity):
     """Smart Solar Manager sensor entity."""
 
     _attr_has_entity_name = True
+    _attr_entity_registry_enabled_default = True
+    entity_description: SmartSolarSensorDescription
 
     def __init__(
         self,
@@ -111,17 +110,10 @@ class SmartSolarSensor(CoordinatorEntity[SmartSolarCoordinator], SensorEntity):
         entry: ConfigEntry,
         description: SmartSolarSensorDescription,
     ) -> None:
-        super().__init__(coordinator)
         self.entity_description = description
+        super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
-        self._attr_name = description.name
         self._entry = entry
-        if description.unit:
-            self._attr_native_unit_of_measurement = description.unit
-        if description.icon:
-            self._attr_icon = description.icon
-        if description.state_class:
-            self._attr_state_class = description.state_class
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
             name=entry.title,
