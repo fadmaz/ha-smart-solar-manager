@@ -6,6 +6,17 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-31
+
+### Added
+
+- Flexible grid sensor support. You can now use:
+  - Separate dedicated grid import and export entities.
+  - A single import-only entity (leave export blank).
+  - A signed net-grid sensor in the import field (positive = import, negative = export).
+  - A signed net-grid sensor in the export field (positive = export, negative = import).
+- Config flow descriptions for grid import and export fields now explain that the export field is optional and that signed sensors are accepted.
+
 ## [0.6.0] - 2026-03-31
 
 ### Changed

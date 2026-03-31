@@ -44,8 +44,8 @@
           "pv_power_entity": "Current solar production power. W, kW, and MW values are converted automatically.",
           "load_power_entity": "Current house load/consumption power. W, kW, and MW values are converted automatically.",
           "battery_soc_entity": "Battery charge level as percentage (0-100).",
-          "grid_import_entity": "Current power imported from grid. W, kW, and MW values are converted automatically.",
-          "grid_export_entity": "Current power exported to grid. W, kW, and MW values are converted automatically."
+          "grid_import_entity": "Grid import power. You can also use a signed net-grid sensor here: positive values are treated as import and negative values as export. W, kW, and MW values are converted automatically.",
+          "grid_export_entity": "Grid export power. Optional if you only have an import sensor or a signed net-grid sensor. Positive values are treated as export and negative values as import. W, kW, and MW values are converted automatically."
         }
       },
       "control": {

@@ -103,7 +103,46 @@ class SmartSolarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Return an energy entity normalized to kWh."""
         return self._normalized_state_float(entity_id, unit_factors=self._ENERGY_UNIT_FACTORS)
 
+    def _grid_channels_from_import_entity(
+        self, entity_id: str | None
+    ) -> tuple[float | None, float | None]:
+        """Interpret an import field as dedicated import or signed net grid power."""
+        value = self._state_power_w(entity_id)
+        if value is None:
+            return None, None
+        if value >= 0:
+            return value, 0.0
+        return 0.0, abs(value)
+
+    def _grid_channels_from_export_entity(
+        self, entity_id: str | None
+    ) -> tuple[float | None, float | None]:
+        """Interpret an export field as dedicated export or signed net grid power."""
+        value = self._state_power_w(entity_id)
+        if value is None:
+            return None, None
+        if value >= 0:
+            return 0.0, value
+        return abs(value), 0.0
+
     async def _async_update_data(self) -> dict[str, Any]:
+        import_from_import, export_from_import = self._grid_channels_from_import_entity(
+            self.entry.data.get(CONF_GRID_IMPORT_ENTITY)
+        )
+        import_from_export, export_from_export = self._grid_channels_from_export_entity(
+            self.entry.data.get(CONF_GRID_EXPORT_ENTITY)
+        )
+
+        grid_import_w: float | None = None
+        for candidate in (import_from_import, import_from_export):
+            if candidate is not None:
+                grid_import_w = max(grid_import_w or 0.0, candidate)
+
+        grid_export_w: float | None = None
+        for candidate in (export_from_import, export_from_export):
+            if candidate is not None:
+                grid_export_w = max(grid_export_w or 0.0, candidate)
+
         inputs: dict[str, Any] = {
             "forecast_today_kwh": self._state_energy_kwh(
                 self.entry.data.get(CONF_FORECAST_TODAY_ENTITY)
@@ -120,8 +159,8 @@ class SmartSolarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "pv_power_w": self._state_power_w(self.entry.data.get(CONF_PV_POWER_ENTITY)),
             "load_power_w": self._state_power_w(self.entry.data.get(CONF_LOAD_POWER_ENTITY)),
             "battery_soc": self._state_float(self.entry.data.get(CONF_BATTERY_SOC_ENTITY)),
-            "grid_import_w": self._state_power_w(self.entry.data.get(CONF_GRID_IMPORT_ENTITY)),
-            "grid_export_w": self._state_power_w(self.entry.data.get(CONF_GRID_EXPORT_ENTITY)),
+            "grid_import_w": grid_import_w,
+            "grid_export_w": grid_export_w,
         }
 
         controllable_devices = self.entry.data.get(CONF_CONTROLLABLE_DEVICES, [])
