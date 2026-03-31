@@ -8,6 +8,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 
 from .const import (
     CONF_BATTERY_SOC_ENTITY,
@@ -41,15 +42,79 @@ from .const import (
 )
 
 
+def _find_entity_by_patterns(
+    entities: list[tuple[str, Any]], keywords: list[str]
+) -> str | None:
+    """Find entity matching keywords in name/domain."""
+    for entity_id, state_obj in entities:
+        entity_id_lower = entity_id.lower()
+        friendly_name = str(state_obj.attributes.get("friendly_name", "")).lower()
+        for keyword in keywords:
+            if keyword.lower() in entity_id_lower or keyword.lower() in friendly_name:
+                return entity_id
+    return None
+
+
+def _guess_entities(hass: Any) -> dict[str, str]:
+    """Smart-guess common entity mappings from available entities."""
+    guessed: dict[str, str] = {}
+    all_states = hass.states.async_all()
+    entities = [(state.entity_id, state) for state in all_states]
+    
+    forecast_today = _find_entity_by_patterns(
+        entities, ["forecast", "solar", "today", "energy", "production"]
+    )
+    if forecast_today:
+        guessed[CONF_FORECAST_TODAY_ENTITY] = forecast_today
+    
+    forecast_next = _find_entity_by_patterns(
+        entities, ["forecast", "solar", "next", "hour"]
+    )
+    if forecast_next:
+        guessed[CONF_FORECAST_NEXT_HOUR_ENTITY] = forecast_next
+    
+    pv_power = _find_entity_by_patterns(entities, ["pv", "solar", "production", "power"])
+    if pv_power:
+        guessed[CONF_PV_POWER_ENTITY] = pv_power
+    
+    load_power = _find_entity_by_patterns(
+        entities, ["load", "consumption", "home", "house"]
+    )
+    if load_power:
+        guessed[CONF_LOAD_POWER_ENTITY] = load_power
+    
+    battery_soc = _find_entity_by_patterns(
+        entities, ["battery", "soc", "state", "charge"]
+    )
+    if battery_soc:
+        guessed[CONF_BATTERY_SOC_ENTITY] = battery_soc
+    
+    grid_import = _find_entity_by_patterns(
+        entities, ["grid", "import", "from", "mains"]
+    )
+    if grid_import:
+        guessed[CONF_GRID_IMPORT_ENTITY] = grid_import
+    
+    grid_export = _find_entity_by_patterns(
+        entities, ["grid", "export", "to", "feed"]
+    )
+    if grid_export:
+        guessed[CONF_GRID_EXPORT_ENTITY] = grid_export
+    
+    return guessed
+
+
 class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Smart Solar Manager."""
 
     VERSION = 1
     _draft_data: dict[str, Any]
+    _guessed_entities: dict[str, str]
 
     def __init__(self) -> None:
         """Initialize config flow."""
         self._draft_data = {}
+        self._guessed_entities = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Handle general settings step."""
@@ -89,11 +154,12 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_forecast(self, user_input: dict[str, Any] | None = None):
         """Handle forecast fields group."""
         errors: dict[str, str] = {}
+        if not self._guessed_entities:
+            self._guessed_entities = _guess_entities(self.hass)
 
         if user_input is not None:
             forecast_today = user_input.get(CONF_FORECAST_TODAY_ENTITY, "").strip()
             forecast_next_hour = user_input.get(CONF_FORECAST_NEXT_HOUR_ENTITY, "").strip()
-
             if not forecast_today and not forecast_next_hour:
                 errors["base"] = "forecast_required"
             else:
@@ -105,18 +171,31 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(
                     CONF_FORECAST_TODAY_ENTITY,
-                    default=self._draft_data.get(CONF_FORECAST_TODAY_ENTITY, ""),
-                ): str,
+                    default=self._draft_data.get(
+                        CONF_FORECAST_TODAY_ENTITY,
+                        self._guessed_entities.get(CONF_FORECAST_TODAY_ENTITY, ""),
+                    ),
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
                 vol.Optional(
                     CONF_FORECAST_NEXT_HOUR_ENTITY,
-                    default=self._draft_data.get(CONF_FORECAST_NEXT_HOUR_ENTITY, ""),
-                ): str,
+                    default=self._draft_data.get(
+                        CONF_FORECAST_NEXT_HOUR_ENTITY,
+                        self._guessed_entities.get(CONF_FORECAST_NEXT_HOUR_ENTITY, ""),
+                    ),
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
             }
         )
         return self.async_show_form(step_id="forecast", data_schema=schema, errors=errors)
 
     async def async_step_energy(self, user_input: dict[str, Any] | None = None):
         """Handle energy entity fields group."""
+        if not self._guessed_entities:
+            self._guessed_entities = _guess_entities(self.hass)
+
         if user_input is not None:
             self._draft_data[CONF_PV_POWER_ENTITY] = user_input.get(
                 CONF_PV_POWER_ENTITY, ""
@@ -139,30 +218,58 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(
                     CONF_PV_POWER_ENTITY,
-                    default=self._draft_data.get(CONF_PV_POWER_ENTITY, ""),
-                ): str,
+                    default=self._draft_data.get(
+                        CONF_PV_POWER_ENTITY,
+                        self._guessed_entities.get(CONF_PV_POWER_ENTITY, ""),
+                    ),
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
                 vol.Optional(
                     CONF_LOAD_POWER_ENTITY,
-                    default=self._draft_data.get(CONF_LOAD_POWER_ENTITY, ""),
-                ): str,
+                    default=self._draft_data.get(
+                        CONF_LOAD_POWER_ENTITY,
+                        self._guessed_entities.get(CONF_LOAD_POWER_ENTITY, ""),
+                    ),
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
                 vol.Optional(
                     CONF_BATTERY_SOC_ENTITY,
-                    default=self._draft_data.get(CONF_BATTERY_SOC_ENTITY, ""),
-                ): str,
+                    default=self._draft_data.get(
+                        CONF_BATTERY_SOC_ENTITY,
+                        self._guessed_entities.get(CONF_BATTERY_SOC_ENTITY, ""),
+                    ),
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
                 vol.Optional(
                     CONF_GRID_IMPORT_ENTITY,
-                    default=self._draft_data.get(CONF_GRID_IMPORT_ENTITY, ""),
-                ): str,
+                    default=self._draft_data.get(
+                        CONF_GRID_IMPORT_ENTITY,
+                        self._guessed_entities.get(CONF_GRID_IMPORT_ENTITY, ""),
+                    ),
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
                 vol.Optional(
                     CONF_GRID_EXPORT_ENTITY,
-                    default=self._draft_data.get(CONF_GRID_EXPORT_ENTITY, ""),
-                ): str,
+                    default=self._draft_data.get(
+                        CONF_GRID_EXPORT_ENTITY,
+                        self._guessed_entities.get(CONF_GRID_EXPORT_ENTITY, ""),
+                    ),
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
             }
         )
         return self.async_show_form(step_id="energy", data_schema=schema)
 
     async def async_step_control(self, user_input: dict[str, Any] | None = None):
         """Handle control and override fields group."""
+        if not self._guessed_entities:
+            self._guessed_entities = _guess_entities(self.hass)
+
         if user_input is not None:
             self._draft_data[CONF_MANUAL_OVERRIDE_ENTITY] = user_input.get(
                 CONF_MANUAL_OVERRIDE_ENTITY, ""
@@ -204,8 +311,13 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(
                     CONF_MANUAL_OVERRIDE_ENTITY,
-                    default=self._draft_data.get(CONF_MANUAL_OVERRIDE_ENTITY, ""),
-                ): str,
+                    default=self._draft_data.get(
+                        CONF_MANUAL_OVERRIDE_ENTITY,
+                        self._guessed_entities.get(CONF_MANUAL_OVERRIDE_ENTITY, ""),
+                    ),
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="input_boolean")
+                ),
                 vol.Optional(
                     CONF_CONTROLLABLE_DEVICES,
                     default=existing_devices_text,
