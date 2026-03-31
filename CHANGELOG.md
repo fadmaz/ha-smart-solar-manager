@@ -6,6 +6,12 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-31
+
+### Fixed
+
+- `Controllable device entities` field in config flow now uses a searchable multi-entity selector dropdown instead of a plain text comma-separated input.
+
 ## [0.2.0] - 2026-03-31
 
 ### Added

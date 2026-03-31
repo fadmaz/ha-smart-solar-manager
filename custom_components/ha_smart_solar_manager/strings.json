@@ -49,11 +49,11 @@
         "description": "Step 4 of 4: Optional control entities for automation mode.",
         "data": {
           "manual_override_entity": "Manual override boolean entity (optional)",
-          "controllable_devices": "Controllable device entities (comma-separated, optional)"
+          "controllable_devices": "Controllable device entities (optional)"
         },
         "data_description": {
           "manual_override_entity": "If this boolean is ON, automatic action execution is blocked unless forced.",
-          "controllable_devices": "List switch/climate/other entities to control during solar surplus. Example: switch.pool_pump, switch.water_heater"
+          "controllable_devices": "Select switch, climate, or other entities to control during solar surplus."
         }
       }
     },

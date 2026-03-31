@@ -9,7 +9,7 @@ Smart solar, battery, and grid energy management for Home Assistant using Foreca
 - Uses user-selected entities so it stays generic across inverter and device integrations.
 - Exposes smart sensors for dashboard cards and automation logic.
 
-## Current MVP Scope (v0.1.0)
+## Current State (v0.3.0)
 
 - Config flow for mapping Forecast.Solar and energy entities.
 - Options flow for goal weights and safety controls.
@@ -50,7 +50,7 @@ Add the integration from Home Assistant UI:
    - Battery SoC entity
    - Grid import/export entities
    - Manual override boolean entity
-   - Comma-separated controllable device entities
+   - Controllable device entities (multi-entity selector)
 
 Then open integration options to tune:
 

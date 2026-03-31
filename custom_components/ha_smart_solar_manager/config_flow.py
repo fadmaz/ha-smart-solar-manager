@@ -274,10 +274,9 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._draft_data[CONF_MANUAL_OVERRIDE_ENTITY] = user_input.get(
                 CONF_MANUAL_OVERRIDE_ENTITY, ""
             ).strip()
-            controllable_raw = user_input.get(CONF_CONTROLLABLE_DEVICES, "")
-            self._draft_data[CONF_CONTROLLABLE_DEVICES] = [
-                entity.strip() for entity in controllable_raw.split(",") if entity.strip()
-            ]
+            self._draft_data[CONF_CONTROLLABLE_DEVICES] = user_input.get(
+                CONF_CONTROLLABLE_DEVICES, []
+            )
 
             payload = {
                 CONF_NAME: self._draft_data[CONF_NAME],
@@ -305,7 +304,6 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(title=payload[CONF_NAME], data=payload)
 
         existing_devices = self._draft_data.get(CONF_CONTROLLABLE_DEVICES, [])
-        existing_devices_text = ", ".join(existing_devices)
 
         schema = vol.Schema(
             {
@@ -320,8 +318,10 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
                 vol.Optional(
                     CONF_CONTROLLABLE_DEVICES,
-                    default=existing_devices_text,
-                ): str,
+                    default=existing_devices,
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(multiple=True)
+                ),
             }
         )
         return self.async_show_form(step_id="control", data_schema=schema)
