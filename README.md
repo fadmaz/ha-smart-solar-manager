@@ -9,11 +9,12 @@ Smart solar, battery, and grid energy management for Home Assistant using Foreca
 - Uses user-selected entities so it stays generic across inverter and device integrations.
 - Exposes smart sensors for dashboard cards and automation logic.
 
-## Current State (v0.8.0)
+## Current State (v0.8.1)
 
 - Config flow for mapping Forecast.Solar and energy entities.
 - Exact-match auto-fill for the four supported forecast sensors when they exist.
 - Energy entity fields are pre-filled from your Home Assistant Energy Dashboard configuration when compatible sources are already configured.
+- Energy Dashboard autofill now supports Home Assistant's current unified energy source schema for solar, battery, and grid sources.
 - Config UI labels are unit-neutral, while supported units are normalized automatically.
 - Options flow for goal weights and safety controls.
 - Optimization output modes:
@@ -77,6 +78,7 @@ When Home Assistant Energy Dashboard is configured, the integration attempts to 
 - Battery SoC from configured battery sources
 - PV power from the same config entry as your solar energy source
 - Grid import/export power from the same config entries as your grid flows
+- Load power from related power sensors on the same device or config entry when available
 
 You can still review and override any detected values before saving.
 

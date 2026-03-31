@@ -6,6 +6,14 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-03-31
+
+### Fixed
+
+- Energy Dashboard autofill now reads Home Assistant's current unified energy source schema instead of legacy-only fields.
+- Grid import/export and PV power hints now resolve from `stat_rate` and `power_config` when those are present in Energy Dashboard sources.
+- Battery SoC and load power hints now fall back to related sensors on the same device or config entry when Energy Dashboard does not store those entities directly.
+
 ## [0.8.0] - 2026-03-31
 
 ### Added

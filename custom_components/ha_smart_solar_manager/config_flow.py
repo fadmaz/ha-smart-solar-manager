@@ -59,6 +59,148 @@ def _forecast_default_entity(hass: Any, field_name: str) -> str:
     return entity_id if hass.states.get(entity_id) is not None else ""
 
 
+def _entity_exists(hass: Any, entity_id: str | None) -> bool:
+    """Return whether an entity exists in state machine."""
+    return bool(entity_id and hass.states.get(entity_id) is not None)
+
+
+def _source_power_entity(hass: Any, source: dict[str, Any]) -> str:
+    """Return the normalized power entity for an energy source when available."""
+    stat_rate = source.get("stat_rate")
+    if _entity_exists(hass, stat_rate):
+        return stat_rate
+
+    power_config = source.get("power_config") or {}
+    direct_rate = power_config.get("stat_rate")
+    if _entity_exists(hass, direct_rate):
+        return direct_rate
+
+    return ""
+
+
+def _source_related_entity_ids(hass: Any, source: dict[str, Any]) -> list[str]:
+    """Collect entity IDs related to an Energy Dashboard source."""
+    candidates = [
+        source.get("stat_energy_from"),
+        source.get("stat_energy_to"),
+        source.get("stat_rate"),
+    ]
+
+    power_config = source.get("power_config") or {}
+    candidates.extend(
+        [
+            power_config.get("stat_rate"),
+            power_config.get("stat_rate_inverted"),
+            power_config.get("stat_rate_from"),
+            power_config.get("stat_rate_to"),
+        ]
+    )
+
+    related: list[str] = []
+    seen: set[str] = set()
+    for entity_id in candidates:
+        if not _entity_exists(hass, entity_id) or entity_id in seen:
+            continue
+        seen.add(entity_id)
+        related.append(entity_id)
+    return related
+
+
+def _candidate_entities_for_related(
+    registry: er.EntityRegistry,
+    related_entity_ids: list[str],
+) -> list[str]:
+    """Return entities on the same devices or config entries as related entities."""
+    config_entry_ids: set[str] = set()
+    device_ids: set[str] = set()
+
+    for entity_id in related_entity_ids:
+        entry = registry.async_get(entity_id)
+        if entry is None:
+            continue
+        if entry.config_entry_id:
+            config_entry_ids.add(entry.config_entry_id)
+        if entry.device_id:
+            device_ids.add(entry.device_id)
+
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for reg_entry in registry.entities.values():
+        if reg_entry.device_id not in device_ids:
+            continue
+        if reg_entry.entity_id in seen:
+            continue
+        seen.add(reg_entry.entity_id)
+        ordered.append(reg_entry.entity_id)
+
+    for reg_entry in registry.entities.values():
+        if reg_entry.config_entry_id not in config_entry_ids:
+            continue
+        if reg_entry.entity_id in seen:
+            continue
+        seen.add(reg_entry.entity_id)
+        ordered.append(reg_entry.entity_id)
+
+    return ordered
+
+
+def _pick_matching_entity(
+    hass: Any,
+    candidates: list[str],
+    *,
+    keywords: list[str],
+    excluded: set[str] | None = None,
+    require_power: bool = False,
+    prefer_battery_percent: bool = False,
+) -> str:
+    """Pick the best matching entity from related candidates."""
+    best_entity = ""
+    best_score = -1
+    excluded = excluded or set()
+
+    for entity_id in candidates:
+        if entity_id in excluded or not entity_id.startswith("sensor."):
+            continue
+
+        state = hass.states.get(entity_id)
+        if state is None:
+            continue
+
+        device_class = state.attributes.get("device_class")
+        unit = state.attributes.get("unit_of_measurement")
+        if require_power and device_class != "power" and unit not in {"W", "kW", "MW"}:
+            continue
+
+        if prefer_battery_percent and device_class != "battery" and unit != "%":
+            continue
+
+        haystack = (
+            f"{entity_id} {(state.attributes.get('friendly_name') or '')}"
+        ).lower()
+        score = 0
+
+        if require_power:
+            score += 30
+            if state.attributes.get("state_class") == "measurement":
+                score += 5
+
+        if prefer_battery_percent:
+            if device_class == "battery":
+                score += 40
+            if unit == "%":
+                score += 10
+
+        for index, keyword in enumerate(keywords):
+            if keyword in haystack:
+                score += 20 - index
+
+        if score > best_score:
+            best_entity = entity_id
+            best_score = score
+
+    return best_entity
+
+
 async def _detect_from_energy_dashboard(hass: Any) -> dict[str, str]:
     """Pre-fill entity mappings from the HA Energy Dashboard configuration."""
     detected: dict[str, str] = {}
@@ -72,68 +214,93 @@ async def _detect_from_energy_dashboard(hass: Any) -> dict[str, str]:
         return detected
 
     registry = er.async_get(hass)
-
-    def _config_entry_for_entity(entity_id: str) -> str | None:
-        entry = registry.async_get(entity_id)
-        return entry.config_entry_id if entry else None
-
-    def _power_entities_for_config_entry(config_entry_id: str, keywords: list[str]) -> str | None:
-        """Find a power-class sensor from a config entry, preferring keyword matches."""
-        candidates: list[str] = []
-        for reg_entry in registry.entities.values():
-            if reg_entry.config_entry_id != config_entry_id:
-                continue
-            state = hass.states.get(reg_entry.entity_id)
-            if state is None:
-                continue
-            if state.attributes.get("device_class") == "power":
-                candidates.append(reg_entry.entity_id)
-        if not candidates:
-            return None
-        for keyword in keywords:
-            for c in candidates:
-                name = (hass.states.get(c).attributes.get("friendly_name") or c).lower()
-                if keyword in name:
-                    return c
-        return candidates[0]
+    related_for_load: list[str] = []
+    picked_entities: set[str] = set()
 
     for source in manager.data.get("energy_sources", []):
         stype = source.get("type")
+        related = _source_related_entity_ids(hass, source)
+        related_for_load.extend(entity_id for entity_id in related if entity_id not in related_for_load)
+        related_candidates = _candidate_entities_for_related(registry, related)
 
-        if stype == "battery":
-            soc = source.get("stat_percentage")
-            if soc and CONF_BATTERY_SOC_ENTITY not in detected:
-                detected[CONF_BATTERY_SOC_ENTITY] = soc
+        if stype == "battery" and CONF_BATTERY_SOC_ENTITY not in detected:
+            battery_soc = _pick_matching_entity(
+                hass,
+                related_candidates,
+                keywords=["soc", "state of charge", "battery", "charge level"],
+                excluded=picked_entities,
+                prefer_battery_percent=True,
+            )
+            if battery_soc:
+                detected[CONF_BATTERY_SOC_ENTITY] = battery_soc
+                picked_entities.add(battery_soc)
 
         elif stype == "solar" and CONF_PV_POWER_ENTITY not in detected:
-            energy_entity = source.get("stat_energy_from")
-            entry_id = _config_entry_for_entity(energy_entity) if energy_entity else None
-            if entry_id:
-                found = _power_entities_for_config_entry(
-                    entry_id, ["pv", "solar", "generation", "production"]
+            pv_power = _source_power_entity(hass, source)
+            if not pv_power:
+                pv_power = _pick_matching_entity(
+                    hass,
+                    related_candidates,
+                    keywords=["pv", "solar", "generation", "production"],
+                    excluded=picked_entities,
+                    require_power=True,
                 )
-                if found:
-                    detected[CONF_PV_POWER_ENTITY] = found
+            if pv_power:
+                detected[CONF_PV_POWER_ENTITY] = pv_power
+                picked_entities.add(pv_power)
 
         elif stype == "grid":
-            for flow in source.get("flow_from", []):
-                energy_entity = flow.get("stat_energy_from")
-                entry_id = _config_entry_for_entity(energy_entity) if energy_entity else None
-                if entry_id and CONF_GRID_IMPORT_ENTITY not in detected:
-                    found = _power_entities_for_config_entry(
-                        entry_id, ["import", "grid", "from grid", "consumed"]
+            power_config = source.get("power_config") or {}
+
+            if CONF_GRID_IMPORT_ENTITY not in detected:
+                grid_import = ""
+                if _entity_exists(hass, power_config.get("stat_rate_from")):
+                    grid_import = power_config["stat_rate_from"]
+                elif _entity_exists(hass, source.get("stat_rate")):
+                    grid_import = source["stat_rate"]
+                elif _entity_exists(hass, power_config.get("stat_rate")):
+                    grid_import = power_config["stat_rate"]
+                else:
+                    grid_import = _pick_matching_entity(
+                        hass,
+                        related_candidates,
+                        keywords=["grid import", "from grid", "import", "consumed", "grid"],
+                        excluded=picked_entities,
+                        require_power=True,
                     )
-                    if found:
-                        detected[CONF_GRID_IMPORT_ENTITY] = found
-            for flow in source.get("flow_to", []):
-                energy_entity = flow.get("stat_energy_to")
-                entry_id = _config_entry_for_entity(energy_entity) if energy_entity else None
-                if entry_id and CONF_GRID_EXPORT_ENTITY not in detected:
-                    found = _power_entities_for_config_entry(
-                        entry_id, ["export", "to grid", "feed"]
+                if grid_import:
+                    detected[CONF_GRID_IMPORT_ENTITY] = grid_import
+                    picked_entities.add(grid_import)
+
+            if CONF_GRID_EXPORT_ENTITY not in detected:
+                grid_export = ""
+                if _entity_exists(hass, power_config.get("stat_rate_to")):
+                    grid_export = power_config["stat_rate_to"]
+                elif _entity_exists(hass, power_config.get("stat_rate_inverted")):
+                    grid_export = power_config["stat_rate_inverted"]
+                else:
+                    grid_export = _pick_matching_entity(
+                        hass,
+                        related_candidates,
+                        keywords=["grid export", "to grid", "export", "feed", "return"],
+                        excluded=picked_entities,
+                        require_power=True,
                     )
-                    if found:
-                        detected[CONF_GRID_EXPORT_ENTITY] = found
+                if grid_export:
+                    detected[CONF_GRID_EXPORT_ENTITY] = grid_export
+                    picked_entities.add(grid_export)
+
+    if CONF_LOAD_POWER_ENTITY not in detected:
+        load_candidates = _candidate_entities_for_related(registry, related_for_load)
+        load_power = _pick_matching_entity(
+            hass,
+            load_candidates,
+            keywords=["load", "consumption", "house", "home", "usage"],
+            excluded=picked_entities,
+            require_power=True,
+        )
+        if load_power:
+            detected[CONF_LOAD_POWER_ENTITY] = load_power
 
     return detected
 
@@ -269,7 +436,10 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
                 vol.Optional(
                     CONF_LOAD_POWER_ENTITY,
-                    default=self._draft_data.get(CONF_LOAD_POWER_ENTITY, ""),
+                    default=self._draft_data.get(
+                        CONF_LOAD_POWER_ENTITY,
+                        self._energy_hints.get(CONF_LOAD_POWER_ENTITY, ""),
+                    ),
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
