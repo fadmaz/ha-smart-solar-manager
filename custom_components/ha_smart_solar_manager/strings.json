@@ -75,6 +75,7 @@
         "data": {
           "auto_control_enabled": "Enable automatic control",
           "dry_run": "Dry-run mode (no real device actions)",
+          "mode_preset": "Strategy preset",
           "battery_min_soc": "Minimum battery reserve (%)",
           "grid_price": "Grid energy price (per kWh)",
           "goal_cost_weight": "Cost reduction weight",
@@ -85,8 +86,25 @@
         "data_description": {
           "auto_control_enabled": "Allows execute_plan to apply actions automatically when conditions are met.",
           "dry_run": "When enabled, actions are simulated and no real service calls are executed.",
+          "mode_preset": "Choose a preset to auto-fill optimisation weights, or select Custom to set them manually.",
           "battery_min_soc": "Minimum battery percentage to preserve as reserve.",
           "grid_price": "Estimated import price used for savings calculations.",
+          "goal_cost_weight": "Higher value prioritizes reducing electricity bill.",
+          "goal_self_consumption_weight": "Higher value prioritizes using local solar energy directly.",
+          "goal_battery_health_weight": "Higher value reduces aggressive battery cycling.",
+          "goal_grid_weight": "Higher value emphasizes grid import/export balancing behavior."
+        }
+      },
+      "customize": {
+        "title": "Custom Strategy Weights",
+        "description": "Fine-tune the optimisation weights. All values should be between 0 and 100.",
+        "data": {
+          "goal_cost_weight": "Cost reduction weight",
+          "goal_self_consumption_weight": "Self-consumption weight",
+          "goal_battery_health_weight": "Battery health weight",
+          "goal_grid_weight": "Grid strategy weight"
+        },
+        "data_description": {
           "goal_cost_weight": "Higher value prioritizes reducing electricity bill.",
           "goal_self_consumption_weight": "Higher value prioritizes using local solar energy directly.",
           "goal_battery_health_weight": "Higher value reduces aggressive battery cycling.",

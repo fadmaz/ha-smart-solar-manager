@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 from typing import Any
+
+_LOGGER = logging.getLogger(__name__)
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -51,7 +54,7 @@ class SmartSolarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         super().__init__(
             hass,
-            logger=hass.data[DOMAIN]["logger"],
+            logger=_LOGGER,
             name=f"{DOMAIN}_{entry.entry_id}",
             update_interval=update_interval,
         )
@@ -162,6 +165,12 @@ class SmartSolarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "grid_import_w": grid_import_w,
             "grid_export_w": grid_export_w,
         }
+
+        if all(v is None for v in inputs.values()):
+            _LOGGER.warning(
+                "All solar inputs are None for entry %s; check entity configuration",
+                self.entry.entry_id,
+            )
 
         controllable_devices = self.entry.data.get(CONF_CONTROLLABLE_DEVICES, [])
 

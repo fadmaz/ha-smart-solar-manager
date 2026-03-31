@@ -20,7 +20,6 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the Smart Solar Manager domain."""
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN].setdefault("entries", {})
-    hass.data[DOMAIN]["logger"] = _LOGGER
     return True
 
 

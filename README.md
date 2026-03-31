@@ -1,144 +1,398 @@
 # HA Smart Solar Manager
 
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/v/release/fadmaz/ha-smart-solar-manager)](https://github.com/fadmaz/ha-smart-solar-manager/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+A forecast-aware solar energy optimization integration for Home Assistant. It reads your solar forecast, live power metrics, and battery state, then recommends and optionally executes the best action for your system at any given moment.
+
 > [!WARNING]
-> **This integration is not functional yet and is still under active development.**
-> Breaking changes may occur at any time. Do not use it in a production Home Assistant setup.
+> **This integration is under active development. Breaking changes may occur before v1.0. Do not use in production without thorough testing.**
 
-Smart solar, battery, and grid energy management for Home Assistant using Forecast.Solar and your existing inverter/device entities.
+---
 
-## What This Integration Does
+## Table of Contents
 
-- Creates a forecast-aware recommendation engine for battery, grid, and flexible loads.
-- Supports recommendation-only mode or optional automatic actions.
-- Uses user-selected entities so it stays generic across inverter and device integrations.
-- Exposes smart sensors for dashboard cards and automation logic.
+- [What It Does](#what-it-does)
+- [Key Features](#key-features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Options](#options)
+- [Entities Reference](#entities-reference)
+- [Optimization Modes](#optimization-modes)
+- [Services](#services)
+- [Automation Examples](#automation-examples)
+- [Safety Model](#safety-model)
+- [Dashboard](#dashboard)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 
-## Current State (v0.9.0)
+---
 
-- Config flow for mapping Forecast.Solar and energy entities.
-- Exact-match auto-fill for the four supported forecast sensors when they exist.
-- Energy entity fields are pre-filled from your Home Assistant Energy Dashboard configuration when compatible sources are already configured.
-- Energy Dashboard autofill now supports Home Assistant's current unified energy source schema for solar, battery, and grid sources.
-- Config UI labels are unit-neutral, while supported units are normalized automatically.
-- Options flow for goal weights and safety controls.
-- Optimization output modes:
-  - `protect_battery`
-  - `run_flexible_loads`
-  - `reduce_grid_import`
-  - `conserve_battery`
-  - `hold`
-- Services:
-  - `ha_smart_solar_manager.recompute_plan`
-  - `ha_smart_solar_manager.execute_plan`
-- Sensors:
-  - Smart Solar Mode
-  - Smart Solar Next Action
-  - Smart Solar Estimated Savings (Hour)
-  - Smart Solar Surplus
-- Switch:
-  - **Manual Override** — flip ON to pause automatic execution; state survives restarts.
+## What It Does
 
-## Installation (HACS Custom Repository)
+HA Smart Solar Manager acts as a lightweight decision engine between your solar/battery setup and Home Assistant automations. It:
+
+1. Reads solar forecast data from [Forecast.Solar](https://www.home-assistant.io/integrations/forecast_solar/) or any compatible integration
+2. Reads live power metrics: PV generation, home load, battery SoC, grid import/export
+3. Calculates a weighted optimization signal based on your configured goals
+4. Publishes a mode and recommended actions as HA entities every N minutes
+5. Optionally executes those actions automatically via the `execute_plan` service
+
+It does not communicate with inverters directly. It works through entities already exposed by your existing integrations (Solarman, GivEnergy, Victron, SolarEdge, Solax, and others).
+
+---
+
+## Key Features
+
+- 5 optimization modes: protect battery, conserve battery, run flexible loads, reduce grid import, hold
+- 4 strategy presets: Balanced, Save Money, Use Solar, Protect Battery, plus fully customizable weights
+- 14 entities created automatically: 9 sensors, 4 binary sensors, 1 switch
+- Single device card: all entities grouped under one HA device
+- Energy Dashboard auto-fill: entity fields pre-populated from existing HA Energy Dashboard configuration
+- Flexible grid sensors: supports dedicated import/export sensors or a single signed net-grid sensor
+- Unit-agnostic input: accepts W/kW/MW for power and Wh/kWh/MWh for energy with automatic conversion
+- Safe by default: automatic control is off and dry-run is on
+- Multi-instance support: add multiple entries to manage multiple sites independently
+
+---
+
+## Requirements
+
+| Requirement | Notes |
+|---|---|
+| Home Assistant | 2024.1 or newer recommended |
+| HACS | Recommended installation method |
+| Solar forecast entities | At least one entity from [Forecast.Solar](https://www.home-assistant.io/integrations/forecast_solar/) or equivalent |
+| Live power entities | Optional but strongly recommended for meaningful optimization |
+
+---
+
+## Installation
+
+### Via HACS (Recommended)
 
 1. Open HACS in Home Assistant.
-2. Add this repository as a Custom Repository of type Integration.
-3. Install `HA Smart Solar Manager`.
-4. Restart Home Assistant.
+2. Click the menu (top-right) and select Custom repositories.
+3. Add `https://github.com/fadmaz/ha-smart-solar-manager` as type Integration.
+4. Search for HA Smart Solar Manager and click Download.
+5. Restart Home Assistant.
+
+### Manual
+
+1. Download the latest release archive from [GitHub Releases](https://github.com/fadmaz/ha-smart-solar-manager/releases).
+2. Copy `custom_components/ha_smart_solar_manager` to `config/custom_components/ha_smart_solar_manager/`.
+3. Restart Home Assistant.
+
+---
 
 ## Configuration
 
-Add the integration from Home Assistant UI:
+Go to Settings -> Devices & Services -> Add Integration and search for HA Smart Solar Manager.
 
-1. Go to Settings -> Devices & Services.
-2. Add Integration -> `HA Smart Solar Manager`.
-3. Map at least one forecast entity:
+The setup wizard has four steps:
 
-- `Forecast today entity` or
-- `Forecast next hour entity`
+### Step 1: General Settings
 
-4. Optionally map additional forecast entities:
+| Field | Description | Default |
+|---|---|---|
+| Name | Friendly profile name | `Smart Solar Manager` |
+| Refresh interval (minutes) | How often optimizer recalculates | `15` |
 
-- `Forecast remaining today entity`
-- `Forecast tomorrow entity`
+### Step 2: Forecast Inputs
 
-- These fields auto-fill when Home Assistant has these exact entities:
-  `sensor.energy_production_today`, `sensor.energy_production_today_remaining`, `sensor.energy_next_hour`, `sensor.energy_production_tomorrow`
+At least one of the first two fields is required.
 
-5. Optionally map energy entities:
-   - PV power entity
-   - Load power entity
-   - Battery SoC entity
-   - Grid import entity — three usage modes:
-     - Dedicated import sensor (positive watts only)
-     - Signed net-grid sensor (positive = import, negative = export)
-     - Leave blank if not available
-   - Grid export entity — optional:
-     - Dedicated export sensor (positive watts only)
-     - Signed net-grid sensor (positive = export, negative = import)
-     - Leave blank if you use a signed import sensor or have no export data
-   - Controllable device entities (multi-entity selector)
+| Field | Description | Unit |
+|---|---|---|
+| Forecast today | Total expected solar production today | Wh or kWh |
+| Forecast remaining today | Remaining production for the rest of today | Wh or kWh |
+| Forecast next hour | Expected production in the next hour | W or kW |
+| Forecast tomorrow | Total expected production tomorrow | Wh or kWh |
 
-When Home Assistant Energy Dashboard is configured, the integration attempts to pre-fill these energy fields automatically:
+Tip: These fields auto-populate when Forecast.Solar standard entities are present:
+`sensor.energy_production_today`, `sensor.energy_production_today_remaining`, `sensor.energy_next_hour`, `sensor.energy_production_tomorrow`.
 
-- Battery SoC from configured battery sources
-- PV power from the same config entry as your solar energy source
-- Grid import/export power from the same config entries as your grid flows
-- Load power from related power sensors on the same device or config entry when available
+### Step 3: Energy Signals
 
-You can still review and override any detected values before saving.
+All fields are optional but improve optimizer accuracy.
 
-The integration normalizes units automatically:
+| Field | Description | Unit |
+|---|---|---|
+| PV power entity | Current solar generation | W / kW / MW |
+| Load power entity | Current total home consumption | W / kW / MW |
+| Battery SoC entity | Battery charge level | 0-100 % |
+| Grid import entity | Grid power drawn from network | W / kW / MW |
+| Grid export entity | Power exported to network | W / kW / MW |
 
-- Power entities can be in `W`, `kW`, or `MW`
-- Energy entities can be in `Wh`, `kWh`, or `MWh`
+Grid sensor modes:
 
-Then open integration options to tune:
+| Your setup | Grid import field | Grid export field |
+|---|---|---|
+| Separate import + export sensors | Import sensor | Export sensor |
+| Signed net-grid sensor (positive = import) | Net-grid sensor | Leave blank |
+| Signed net-grid sensor (positive = export) | Leave blank | Net-grid sensor |
+| Import only, no export data | Import sensor | Leave blank |
 
-- `Enable automatic control`
-- `Dry-run mode`
-- `Minimum battery reserve`
-- Goal weights for cost, self-consumption, battery health, and grid strategy
+When your Energy Dashboard is configured, these fields are pre-filled from detected sources. Review and override before saving.
 
-## Safety Model
+### Step 4: Controllable Devices
 
-- Automatic control is disabled by default.
-- Dry-run is enabled by default.
-- A **Manual Override** switch (`switch.<name>_manual_override`) is created automatically. Flip it ON to block automatic execution without disabling the integration.
-- `execute_plan` can be forced explicitly per call (bypasses the manual override switch).
+Select entities the integration may turn on during `run_flexible_loads` mode (for example: water heater, EV charger, washing machine).
 
-## Dashboard
+A Manual Override switch is created automatically. No extra helper entity is required.
 
-An example Lovelace YAML dashboard section is provided in:
+---
 
-- `dashboard/smart_solar_dashboard.yaml`
+## Options
 
-It includes:
+Open options via Settings -> Devices & Services -> HA Smart Solar Manager -> Configure.
 
-- Strategy mode and reason
-- Next action
-- Estimated savings
-- Manual controls for recompute/execute services
+### General
 
-## Service Examples
+| Option | Description | Default |
+|---|---|---|
+| Enable automatic control | Allow `execute_plan` to apply actions automatically | Off |
+| Dry-run mode | Log actions but do not execute device service calls | On |
+| Strategy preset | Auto-configure optimization weights | `Balanced` |
+| Minimum battery reserve (%) | Battery SoC floor | `20` |
+| Grid energy price (per kWh) | Used for estimated savings | `0.20` |
 
-Recompute immediately:
+### Strategy Presets
+
+| Preset | Best for | Cost | Self-use | Battery | Grid |
+|---|---|---|---|---|---|
+| Balanced | General household use | 40 | 30 | 20 | 10 |
+| Save Money | High electricity tariffs | 60 | 15 | 15 | 10 |
+| Use Solar | Maximize self-consumption | 20 | 50 | 20 | 10 |
+| Protect Battery | Extend battery lifespan | 20 | 20 | 50 | 10 |
+| Custom | Advanced manual tuning | - | - | - | - |
+
+Selecting Custom opens a second page for manual weight values (0-100). Weights are normalized internally.
+
+---
+
+## Entities Reference
+
+All entities are grouped under one HA device named after your profile.
+
+### Sensors
+
+| Entity | Description | Unit | Attributes |
+|---|---|---|---|
+| `sensor.*_smart_solar_mode` | Current optimization mode | - | `reason`, `actions`, `weights`, `weighted_signal`, `inputs` |
+| `sensor.*_smart_solar_reason` | Explanation for the current mode | - | - |
+| `sensor.*_smart_solar_next_action` | First recommended action (`command entity_id`) | - | - |
+| `sensor.*_smart_solar_estimated_savings_hour` | Estimated cost savings for this hour | currency | - |
+| `sensor.*_smart_solar_surplus` | Solar generation minus current load | W | - |
+| `sensor.*_smart_solar_battery_soc` | Battery state of charge | % | - |
+| `sensor.*_smart_solar_grid_import` | Grid import power | W | - |
+| `sensor.*_smart_solar_pv_power` | PV generation power | W | - |
+| `sensor.*_smart_solar_efficiency_score` | Self-consumption efficiency score | % | - |
+
+### Binary Sensors
+
+| Entity | Device Class | Turns ON when |
+|---|---|---|
+| `binary_sensor.*_action_needed` | Problem | Recommended actions list is non-empty |
+| `binary_sensor.*_battery_low` | Battery | Battery SoC is below configured minimum reserve |
+| `binary_sensor.*_high_solar_production` | - | Solar surplus exceeds 500 W |
+| `binary_sensor.*_high_grid_import` | - | Grid import exceeds 1000 W |
+
+### Switch
+
+| Entity | Description |
+|---|---|
+| `switch.*_manual_override` | Turn ON to block automatic execution. State is restored after restart. |
+
+---
+
+## Optimization Modes
+
+| Mode | Triggered when | Effect |
+|---|---|---|
+| `protect_battery` | Battery SoC below minimum reserve | Blocks flexible loads (highest priority) |
+| `conserve_battery` | Low forecast day and battery near reserve | Avoids non-essential consumption |
+| `run_flexible_loads` | Solar surplus > 300 W and strong next-hour forecast | Turns on configured controllable devices |
+| `reduce_grid_import` | Grid import > 500 W while battery above reserve | Signals load shifting or battery support |
+| `hold` | No other condition matched | No action recommended |
+
+Priority order: `protect_battery` -> `conserve_battery` -> `run_flexible_loads` -> `reduce_grid_import` -> `hold`
+
+---
+
+## Services
+
+### `ha_smart_solar_manager.recompute_plan`
+
+Forces an immediate optimizer recalculation.
 
 ```yaml
 service: ha_smart_solar_manager.recompute_plan
 data: {}
 ```
 
-Execute action plan with safety options:
+Target one entry:
+
+```yaml
+service: ha_smart_solar_manager.recompute_plan
+data:
+  entry_id: "abc123def456"
+```
+
+### `ha_smart_solar_manager.execute_plan`
+
+Executes recommended actions with safety checks.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `entry_id` | string | all entries | Limit execution to one entry |
+| `force` | boolean | `false` | Bypass manual override and auto-control check |
+| `dry_run` | boolean | options value | Override dry-run for one call |
+
+```yaml
+service: ha_smart_solar_manager.execute_plan
+data: {}
+```
 
 ```yaml
 service: ha_smart_solar_manager.execute_plan
 data:
-	force: false
-	dry_run: true
+  force: true
+  dry_run: false
 ```
 
-## Notes
+---
 
-- This project is generic by design and does not hard-code one inverter vendor.
-- It works best when your existing integrations already provide reliable entities.
-- Future phases will add richer scheduling, cooldown windows, and broader adapter support.
+## Automation Examples
+
+### Turn on water heater during solar surplus
+
+```yaml
+alias: Solar surplus heat water
+trigger:
+  - platform: state
+    entity_id: binary_sensor.smart_solar_high_solar_production
+    to: "on"
+condition:
+  - condition: state
+    entity_id: switch.smart_solar_manual_override
+    state: "off"
+action:
+  - service: switch.turn_on
+    target:
+      entity_id: switch.water_heater
+```
+
+### Auto-execute plan on mode updates
+
+```yaml
+alias: Auto execute solar plan
+trigger:
+  - platform: state
+    entity_id: sensor.smart_solar_mode
+action:
+  - service: ha_smart_solar_manager.execute_plan
+    data:
+      force: false
+      dry_run: false
+```
+
+### Notify on low battery
+
+```yaml
+alias: Battery low notification
+trigger:
+  - platform: state
+    entity_id: binary_sensor.smart_solar_battery_low
+    to: "on"
+action:
+  - service: notify.mobile_app_your_phone
+    data:
+      title: "Battery Low"
+      message: "Solar battery is below the configured minimum reserve."
+```
+
+### Recompute before automation run
+
+```yaml
+alias: Pre automation recompute
+trigger:
+  - platform: time
+    at: "07:00:00"
+action:
+  - service: ha_smart_solar_manager.recompute_plan
+    data: {}
+  - delay: "00:00:10"
+  - service: ha_smart_solar_manager.execute_plan
+    data:
+      dry_run: false
+```
+
+---
+
+## Safety Model
+
+Safe defaults:
+
+| Safety Layer | Default | How to change |
+|---|---|---|
+| Automatic control | Disabled | Enable `auto_control_enabled` |
+| Dry-run mode | Enabled | Disable `dry_run` in options or pass `dry_run: false` |
+| Manual Override switch | Off | Turn `switch.*_manual_override` ON to pause execution |
+| Per-device error isolation | Always active | Failing device action is logged; remaining actions continue |
+
+`force: true` on `execute_plan` bypasses manual override and auto-control checks. Use for explicit testing only.
+
+---
+
+## Dashboard
+
+Example Lovelace configuration is available in [dashboard/smart_solar_dashboard.yaml](dashboard/smart_solar_dashboard.yaml).
+
+It includes:
+- Mode and reason
+- Binary sensor status cards
+- Estimated savings and solar surplus
+- Manual Override control
+- Recompute and execute service buttons
+
+To use:
+1. Open Lovelace dashboard in edit mode.
+2. Add Card -> Manual.
+3. Paste the content from `dashboard/smart_solar_dashboard.yaml`.
+4. Adjust entity names to match your profile.
+
+---
+
+## Troubleshooting
+
+**Only mode sensor appears**
+Check logs for platform setup errors under `ha_smart_solar_manager`.
+
+**All sensors are unknown or unavailable**
+At least one forecast entity must be mapped and have a valid state. Check for warning:
+`All solar inputs are None for entry <id>; check entity configuration`
+
+**Cannot add a second integration instance**
+Multi-instance support requires v0.11.0 or newer.
+
+**Estimated savings always 0**
+Savings are only calculated in `run_flexible_loads` and `reduce_grid_import`. Ensure `grid_price` is positive.
+
+**Actions are not executing**
+1. Ensure `auto_control_enabled` is ON or use `force: true`
+2. Ensure `dry_run` is OFF or pass `dry_run: false`
+3. Ensure `switch.*_manual_override` is OFF
+4. Ensure target entities exist and are controllable
+
+---
+
+## Contributing
+
+Issues and pull requests are welcome at [github.com/fadmaz/ha-smart-solar-manager](https://github.com/fadmaz/ha-smart-solar-manager/issues).
+
+## License
+
+[MIT](LICENSE)

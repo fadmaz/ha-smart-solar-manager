@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import voluptuous as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
+
+_LOGGER = logging.getLogger(__name__)
 
 from .const import (
     ATTR_ACTIONS,
@@ -84,12 +87,20 @@ async def async_register_services(hass: HomeAssistant) -> None:
                 if dry_run:
                     continue
                 domain = entity_id.split(".", 1)[0]
-                await hass.services.async_call(
-                    domain,
-                    command,
-                    {"entity_id": entity_id},
-                    blocking=True,
-                )
+                try:
+                    await hass.services.async_call(
+                        domain,
+                        command,
+                        {"entity_id": entity_id},
+                        blocking=True,
+                    )
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.error(
+                        "Failed to execute %s on %s: %s",
+                        command,
+                        entity_id,
+                        err,
+                    )
 
     hass.services.async_register(
         DOMAIN,

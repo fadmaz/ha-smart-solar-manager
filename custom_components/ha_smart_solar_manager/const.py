@@ -3,7 +3,7 @@
 from datetime import timedelta
 
 DOMAIN = "ha_smart_solar_manager"
-PLATFORMS = ["sensor", "switch"]
+PLATFORMS = ["sensor", "switch", "binary_sensor"]
 
 DEFAULT_NAME = "Smart Solar Manager"
 DEFAULT_SCAN_INTERVAL_MINUTES = 15
@@ -30,12 +30,48 @@ CONF_CONTROLLABLE_DEVICES = "controllable_devices"
 
 OPT_AUTO_CONTROL_ENABLED = "auto_control_enabled"
 OPT_DRY_RUN = "dry_run"
+OPT_MODE_PRESET = "mode_preset"
 OPT_BATTERY_MIN_SOC = "battery_min_soc"
 OPT_GRID_PRICE = "grid_price"
 OPT_GOAL_COST_WEIGHT = "goal_cost_weight"
 OPT_GOAL_SELF_CONSUMPTION_WEIGHT = "goal_self_consumption_weight"
 OPT_GOAL_BATTERY_HEALTH_WEIGHT = "goal_battery_health_weight"
 OPT_GOAL_GRID_WEIGHT = "goal_grid_weight"
+
+# Smart preset modes
+PRESET_BALANCED = "balanced"
+PRESET_SAVE_MONEY = "save_money"
+PRESET_USE_SOLAR = "use_solar"
+PRESET_PROTECT_BATTERY = "protect_battery"
+PRESET_CUSTOM = "custom"
+
+# Preset weight configurations
+PRESET_WEIGHTS = {
+    PRESET_BALANCED: {
+        OPT_GOAL_COST_WEIGHT: 40,
+        OPT_GOAL_SELF_CONSUMPTION_WEIGHT: 30,
+        OPT_GOAL_BATTERY_HEALTH_WEIGHT: 20,
+        OPT_GOAL_GRID_WEIGHT: 10,
+    },
+    PRESET_SAVE_MONEY: {
+        OPT_GOAL_COST_WEIGHT: 60,
+        OPT_GOAL_SELF_CONSUMPTION_WEIGHT: 15,
+        OPT_GOAL_BATTERY_HEALTH_WEIGHT: 15,
+        OPT_GOAL_GRID_WEIGHT: 10,
+    },
+    PRESET_USE_SOLAR: {
+        OPT_GOAL_COST_WEIGHT: 20,
+        OPT_GOAL_SELF_CONSUMPTION_WEIGHT: 50,
+        OPT_GOAL_BATTERY_HEALTH_WEIGHT: 20,
+        OPT_GOAL_GRID_WEIGHT: 10,
+    },
+    PRESET_PROTECT_BATTERY: {
+        OPT_GOAL_COST_WEIGHT: 20,
+        OPT_GOAL_SELF_CONSUMPTION_WEIGHT: 20,
+        OPT_GOAL_BATTERY_HEALTH_WEIGHT: 50,
+        OPT_GOAL_GRID_WEIGHT: 10,
+    },
+}
 
 SERVICE_RECOMPUTE_PLAN = "recompute_plan"
 SERVICE_EXECUTE_PLAN = "execute_plan"

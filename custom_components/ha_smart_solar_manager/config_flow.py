@@ -41,6 +41,13 @@ from .const import (
     OPT_GOAL_GRID_WEIGHT,
     OPT_GOAL_SELF_CONSUMPTION_WEIGHT,
     OPT_GRID_PRICE,
+    OPT_MODE_PRESET,
+    PRESET_BALANCED,
+    PRESET_CUSTOM,
+    PRESET_PROTECT_BATTERY,
+    PRESET_SAVE_MONEY,
+    PRESET_USE_SOLAR,
+    PRESET_WEIGHTS,
 )
 
 
@@ -318,9 +325,6 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Handle general settings step."""
-        if self._async_current_entries():
-            return self.async_abort(reason="already_configured")
-
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -520,13 +524,26 @@ class SmartSolarOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._config_entry = config_entry
+        self._draft_options: dict[str, Any] = {}
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
-        """Manage options."""
+        """Start options flow with preset selection."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            self._draft_options = dict(user_input)
+            selected_preset = user_input.get(OPT_MODE_PRESET, PRESET_BALANCED)
+            
+            if selected_preset == PRESET_CUSTOM:
+                return await self.async_step_customize()
+            
+            # Apply preset weights and create entry
+            if selected_preset in PRESET_WEIGHTS:
+                for key, value in PRESET_WEIGHTS[selected_preset].items():
+                    self._draft_options[key] = value
+            
+            return self.async_create_entry(title="", data=self._draft_options)
 
         options = self._config_entry.options
+        current_preset = options.get(OPT_MODE_PRESET, PRESET_BALANCED)
 
         schema = vol.Schema(
             {
@@ -539,6 +556,18 @@ class SmartSolarOptionsFlow(config_entries.OptionsFlow):
                     default=options.get(OPT_DRY_RUN, True),
                 ): bool,
                 vol.Required(
+                    OPT_MODE_PRESET,
+                    default=current_preset,
+                ): vol.In(
+                    {
+                        PRESET_BALANCED: "Balanced (Default)",
+                        PRESET_SAVE_MONEY: "Save Money",
+                        PRESET_USE_SOLAR: "Use Solar Energy",
+                        PRESET_PROTECT_BATTERY: "Protect Battery",
+                        PRESET_CUSTOM: "Custom Weights",
+                    }
+                ),
+                vol.Required(
                     OPT_BATTERY_MIN_SOC,
                     default=options.get(OPT_BATTERY_MIN_SOC, DEFAULT_BATTERY_MIN_SOC),
                 ): vol.All(int, vol.Range(min=5, max=95)),
@@ -546,6 +575,21 @@ class SmartSolarOptionsFlow(config_entries.OptionsFlow):
                     OPT_GRID_PRICE,
                     default=options.get(OPT_GRID_PRICE, DEFAULT_GRID_PRICE),
                 ): vol.All(float, vol.Range(min=0)),
+            }
+        )
+
+        return self.async_show_form(step_id="init", data_schema=schema)
+
+    async def async_step_customize(self, user_input: dict[str, Any] | None = None):
+        """Handle custom weight configuration."""
+        if user_input is not None:
+            self._draft_options.update(user_input)
+            return self.async_create_entry(title="", data=self._draft_options)
+
+        options = self._config_entry.options
+
+        schema = vol.Schema(
+            {
                 vol.Required(
                     OPT_GOAL_COST_WEIGHT,
                     default=options.get(OPT_GOAL_COST_WEIGHT, DEFAULT_GOAL_COST_WEIGHT),
@@ -571,4 +615,4 @@ class SmartSolarOptionsFlow(config_entries.OptionsFlow):
             }
         )
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="customize", data_schema=schema)

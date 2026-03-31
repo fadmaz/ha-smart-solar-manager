@@ -82,11 +82,13 @@ def build_recommendation(
     weights = _normalize_weights(options)
 
     forecast_today_kwh = _safe_float(inputs.get("forecast_today_kwh"))
+    forecast_remaining_today_kwh = _safe_float(inputs.get("forecast_remaining_today_kwh"))
     forecast_next_hour_w = _safe_float(inputs.get("forecast_next_hour_w"))
     pv_power_w = _safe_float(inputs.get("pv_power_w"))
     load_power_w = _safe_float(inputs.get("load_power_w"))
     battery_soc = _safe_float(inputs.get("battery_soc"), fallback=50.0)
     grid_import_w = _safe_float(inputs.get("grid_import_w"))
+    grid_export_w = _safe_float(inputs.get("grid_export_w"))
 
     solar_surplus_w = pv_power_w - load_power_w
     mode = "hold"
@@ -95,15 +97,18 @@ def build_recommendation(
     if battery_soc < battery_min_soc:
         mode = "protect_battery"
         reason = "Battery is below minimum reserve. Avoid extra discharge and flexible loads."
-    elif solar_surplus_w > 300 and forecast_next_hour_w > 250:
+    elif (
+        (forecast_today_kwh < 2 or forecast_remaining_today_kwh < 0.5)
+        and battery_soc < battery_min_soc + 15
+    ):
+        mode = "conserve_battery"
+        reason = "Low forecast day detected. Preserve battery for critical demand."
+    elif (solar_surplus_w > 300 or grid_export_w > 200) and forecast_next_hour_w > 250:
         mode = "run_flexible_loads"
         reason = "Solar surplus is available. Shift flexible consumption now."
     elif grid_import_w > 500 and battery_soc > battery_min_soc + 10:
         mode = "reduce_grid_import"
         reason = "Grid import is elevated while battery reserve allows support."
-    elif forecast_today_kwh < 2 and battery_soc < battery_min_soc + 15:
-        mode = "conserve_battery"
-        reason = "Low forecast day detected. Preserve battery for critical demand."
 
     actions: list[dict[str, str]] = []
     if mode == "run_flexible_loads":

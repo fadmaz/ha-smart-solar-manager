@@ -5,6 +5,7 @@ from __future__ import annotations
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
@@ -33,6 +34,11 @@ class ManualOverrideSwitchEntity(RestoreEntity, SwitchEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_manual_override"
         self._is_on = False
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title,
+            manufacturer="Smart Solar Manager",
+        )
 
     @property
     def is_on(self) -> bool:
@@ -55,3 +61,4 @@ class ManualOverrideSwitchEntity(RestoreEntity, SwitchEntity):
         last_state = await self.async_get_last_state()
         if last_state is not None:
             self._is_on = last_state.state.lower() == "on"
+            self.async_write_ha_state()

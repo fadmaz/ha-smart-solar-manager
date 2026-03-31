@@ -47,3 +47,219 @@ def test_build_recommendation_prefers_flexible_loads_on_surplus() -> None:
     assert result["mode"] == "run_flexible_loads"
     assert result["actions"]
     assert result["actions"][0]["entity_id"] == "switch.pool_pump"
+
+
+def test_build_recommendation_protects_battery_below_minimum() -> None:
+    """Battery below minimum should trigger protect mode."""
+    result = build_recommendation(
+        inputs={
+            "forecast_today_kwh": 8,
+            "forecast_next_hour_w": 1500,
+            "pv_power_w": 1000,
+            "load_power_w": 900,
+            "battery_soc": 15,
+            "grid_import_w": 0,
+        },
+        options={
+            "battery_min_soc": 20,
+            "grid_price": 0.2,
+            "goal_cost_weight": 40,
+            "goal_self_consumption_weight": 30,
+            "goal_battery_health_weight": 20,
+            "goal_grid_weight": 10,
+        },
+        controllable_devices=["switch.pool_pump"],
+    )
+
+    assert result["mode"] == "protect_battery"
+    assert not result["actions"]
+    assert "Battery is below minimum" in result["reason"]
+
+
+def test_build_recommendation_reduces_grid_import() -> None:
+    """High grid import with sufficient battery should reduce import."""
+    result = build_recommendation(
+        inputs={
+            "forecast_today_kwh": 8,
+            "forecast_next_hour_w": 1500,
+            "pv_power_w": 500,
+            "load_power_w": 1000,
+            "battery_soc": 70,
+            "grid_import_w": 600,
+        },
+        options={
+            "battery_min_soc": 20,
+            "grid_price": 0.2,
+            "goal_cost_weight": 40,
+            "goal_self_consumption_weight": 30,
+            "goal_battery_health_weight": 20,
+            "goal_grid_weight": 10,
+        },
+        controllable_devices=[],
+    )
+
+    assert result["mode"] == "reduce_grid_import"
+    assert "Grid import is elevated" in result["reason"]
+    assert result["estimated_savings"] > 0
+
+
+def test_build_recommendation_conserves_battery_low_forecast() -> None:
+    """Low forecast with low battery buffer should conserve."""
+    result = build_recommendation(
+        inputs={
+            "forecast_today_kwh": 1,
+            "forecast_next_hour_w": 100,
+            "pv_power_w": 500,
+            "load_power_w": 400,
+            "battery_soc": 32,
+            "grid_import_w": 0,
+        },
+        options={
+            "battery_min_soc": 20,
+            "grid_price": 0.2,
+            "goal_cost_weight": 40,
+            "goal_self_consumption_weight": 30,
+            "goal_battery_health_weight": 20,
+            "goal_grid_weight": 10,
+        },
+        controllable_devices=["switch.pool_pump"],
+    )
+
+    assert result["mode"] == "conserve_battery"
+    assert "Low forecast" in result["reason"]
+    assert not result["actions"]
+
+
+def test_build_recommendation_default_hold_mode() -> None:
+    """Balanced conditions should result in hold mode."""
+    result = build_recommendation(
+        inputs={
+            "forecast_today_kwh": 8,
+            "forecast_next_hour_w": 1500,
+            "pv_power_w": 1000,
+            "load_power_w": 900,
+            "battery_soc": 50,
+            "grid_import_w": 100,
+        },
+        options={
+            "battery_min_soc": 20,
+            "grid_price": 0.2,
+            "goal_cost_weight": 40,
+            "goal_self_consumption_weight": 30,
+            "goal_battery_health_weight": 20,
+            "goal_grid_weight": 10,
+        },
+        controllable_devices=[],
+    )
+
+    assert result["mode"] == "hold"
+    assert "No strong optimization signal" in result["reason"]
+
+
+def test_build_recommendation_normalized_weights() -> None:
+    """Weights should be normalized to sum to 1."""
+    result = build_recommendation(
+        inputs={
+            "forecast_today_kwh": 8,
+            "forecast_next_hour_w": 1500,
+            "pv_power_w": 1000,
+            "load_power_w": 900,
+            "battery_soc": 50,
+            "grid_import_w": 100,
+        },
+        options={
+            "battery_min_soc": 20,
+            "grid_price": 0.2,
+            "goal_cost_weight": 40,
+            "goal_self_consumption_weight": 30,
+            "goal_battery_health_weight": 20,
+            "goal_grid_weight": 10,
+        },
+        controllable_devices=[],
+    )
+
+    weights = result["weights"]
+    total_weight = (
+        weights["cost"]
+        + weights["self_consumption"]
+        + weights["battery_health"]
+        + weights["grid"]
+    )
+    assert abs(total_weight - 1.0) < 0.001
+
+
+def test_build_recommendation_handles_missing_inputs() -> None:
+    """Should handle gracefully when inputs are missing."""
+    result = build_recommendation(
+        inputs={},
+        options={
+            "battery_min_soc": 20,
+            "grid_price": 0.2,
+            "goal_cost_weight": 40,
+            "goal_self_consumption_weight": 30,
+            "goal_battery_health_weight": 20,
+            "goal_grid_weight": 10,
+        },
+        controllable_devices=[],
+    )
+
+    assert result["mode"] in ["hold", "protect_battery", "conserve_battery"]
+    assert "solar_surplus_w" in result
+    assert "weighted_signal" in result
+
+
+def test_build_recommendation_multiple_controllable_devices() -> None:
+    """Should add all controllable devices to actions when in flexible load mode."""
+    result = build_recommendation(
+        inputs={
+            "forecast_today_kwh": 8,
+            "forecast_next_hour_w": 1500,
+            "pv_power_w": 3000,
+            "load_power_w": 900,
+            "battery_soc": 55,
+            "grid_import_w": 0,
+        },
+        options={
+            "battery_min_soc": 20,
+            "grid_price": 0.2,
+            "goal_cost_weight": 40,
+            "goal_self_consumption_weight": 30,
+            "goal_battery_health_weight": 20,
+            "goal_grid_weight": 10,
+        },
+        controllable_devices=["switch.pool_pump", "switch.water_heater", "switch.ev_charger"],
+    )
+
+    assert result["mode"] == "run_flexible_loads"
+    assert len(result["actions"]) == 3
+    assert result["actions"][0]["entity_id"] == "switch.pool_pump"
+    assert result["actions"][1]["entity_id"] == "switch.water_heater"
+    assert result["actions"][2]["entity_id"] == "switch.ev_charger"
+
+
+def test_build_recommendation_savings_calculation() -> None:
+    """Should calculate estimated savings correctly."""
+    result = build_recommendation(
+        inputs={
+            "forecast_today_kwh": 8,
+            "forecast_next_hour_w": 1500,
+            "pv_power_w": 2400,
+            "load_power_w": 900,
+            "battery_soc": 55,
+            "grid_import_w": 0,
+        },
+        options={
+            "battery_min_soc": 20,
+            "grid_price": 0.25,
+            "goal_cost_weight": 40,
+            "goal_self_consumption_weight": 30,
+            "goal_battery_health_weight": 20,
+            "goal_grid_weight": 10,
+        },
+        controllable_devices=["switch.pool_pump"],
+    )
+
+    # Solar surplus: 2400 - 900 = 1500W
+    # Estimated savings: (1500 / 1000) * 0.25 = 0.375
+    assert result["mode"] == "run_flexible_loads"
+    assert result["estimated_savings"] == 0.375
