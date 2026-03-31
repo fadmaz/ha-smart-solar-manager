@@ -11,6 +11,11 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - **optimizer.py** - Added `confidence_score` to recommendation payload (0-100) based on input completeness.
 - **sensor.py** - Added `Smart Solar Confidence Score` sensor to expose recommendation confidence.
 - **coordinator.py / services.py** - Added lifecycle bus events for `plan_computed`, `action_executed`, `action_failed`, and `safety_blocked`.
+- **services.py / options flow** - Added configurable action retry policy (`action_max_retries`, `action_retry_delay_seconds`) for resilient execution.
+
+### Changed
+
+- **services.py** - Dry-run actions now emit `action_executed` events and no-action plans emit `safety_blocked` with `reason=no_actions`.
 
 ## [0.11.0] - 2026-03-31
 

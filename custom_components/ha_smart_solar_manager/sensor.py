@@ -163,17 +163,17 @@ class SmartSolarSensor(CoordinatorEntity[SmartSolarCoordinator], SensorEntity):
             return inputs.get("pv_power_w")
 
         if self.entity_description.key == "efficiency_score":
-            # Calculate efficiency score based on current conditions
+            # Calculate efficiency score based on current conditions.
+            # Return None when PV is unavailable/zero to avoid misleading values.
             pv_power = inputs.get("pv_power_w", 0) or 0
             grid_import = inputs.get("grid_import_w", 0) or 0
             battery_soc = inputs.get("battery_soc", 50) or 50
-            
-            # Score based on self-consumption and battery optimization
-            if pv_power > 0:
-                self_consumption_ratio = min(100, (1 - (grid_import / (pv_power + 1))) * 100)
-            else:
-                self_consumption_ratio = 50
-            
+
+            if pv_power <= 0:
+                return None
+
+            # Score based on self-consumption and battery optimization.
+            self_consumption_ratio = max(0, min(100, (1 - (grid_import / pv_power)) * 100))
             battery_optimization = battery_soc if battery_soc >= 30 else (battery_soc / 30) * 50
             efficiency = (self_consumption_ratio * 0.6 + battery_optimization * 0.4)
             return round(max(0, min(100, efficiency)), 1)
@@ -192,6 +192,7 @@ class SmartSolarSensor(CoordinatorEntity[SmartSolarCoordinator], SensorEntity):
         inputs = (self.coordinator.data or {}).get("inputs", {})
         return {
             "reason": recommendation.get("reason", ""),
+            "confidence_score": recommendation.get("confidence_score", 0),
             "actions": recommendation.get("actions", []),
             "weights": recommendation.get("weights", {}),
             "weighted_signal": recommendation.get("weighted_signal", 0),

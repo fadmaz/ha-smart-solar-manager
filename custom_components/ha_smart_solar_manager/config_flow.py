@@ -25,6 +25,8 @@ from .const import (
     CONF_PV_POWER_ENTITY,
     CONF_SCAN_INTERVAL_MINUTES,
     DEFAULT_BATTERY_MIN_SOC,
+    DEFAULT_ACTION_MAX_RETRIES,
+    DEFAULT_ACTION_RETRY_DELAY_SECONDS,
     DEFAULT_GOAL_BATTERY_HEALTH_WEIGHT,
     DEFAULT_GOAL_COST_WEIGHT,
     DEFAULT_GOAL_GRID_WEIGHT,
@@ -37,6 +39,8 @@ from .const import (
     OPT_BATTERY_MIN_SOC,
     OPT_DRY_RUN,
     OPT_GOAL_BATTERY_HEALTH_WEIGHT,
+    OPT_ACTION_MAX_RETRIES,
+    OPT_ACTION_RETRY_DELAY_SECONDS,
     OPT_GOAL_COST_WEIGHT,
     OPT_GOAL_GRID_WEIGHT,
     OPT_GOAL_SELF_CONSUMPTION_WEIGHT,
@@ -575,6 +579,17 @@ class SmartSolarOptionsFlow(config_entries.OptionsFlow):
                     OPT_GRID_PRICE,
                     default=options.get(OPT_GRID_PRICE, DEFAULT_GRID_PRICE),
                 ): vol.All(float, vol.Range(min=0)),
+                vol.Required(
+                    OPT_ACTION_MAX_RETRIES,
+                    default=options.get(OPT_ACTION_MAX_RETRIES, DEFAULT_ACTION_MAX_RETRIES),
+                ): vol.All(int, vol.Range(min=0, max=5)),
+                vol.Required(
+                    OPT_ACTION_RETRY_DELAY_SECONDS,
+                    default=options.get(
+                        OPT_ACTION_RETRY_DELAY_SECONDS,
+                        DEFAULT_ACTION_RETRY_DELAY_SECONDS,
+                    ),
+                ): vol.All(float, vol.Range(min=0, max=30)),
             }
         )
 

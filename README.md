@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/fadmaz/ha-smart-solar-manager)](https://github.com/fadmaz/ha-smart-solar-manager/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/github/license/fadmaz/ha-smart-solar-manager)](LICENSE)
 
 A forecast-aware solar energy optimization integration for Home Assistant. It reads your solar forecast, live power metrics, and battery state, then recommends and optionally executes the best action for your system at any given moment.
 
@@ -158,6 +158,8 @@ Open options via Settings -> Devices & Services -> HA Smart Solar Manager -> Con
 | Strategy preset             | Auto-configure optimization weights                 | `Balanced` |
 | Minimum battery reserve (%) | Battery SoC floor                                   | `20`       |
 | Grid energy price (per kWh) | Used for estimated savings                          | `0.20`     |
+| Action retries              | Max retry attempts per action call                  | `2`        |
+| Retry delay (seconds)       | Delay between retries                               | `1.0`      |
 
 ### Strategy Presets
 
@@ -268,12 +270,12 @@ data:
 
 The integration emits Home Assistant bus events for observability and automations:
 
-| Event                                    | When emitted                                        | Key fields                                             |
-| ---------------------------------------- | --------------------------------------------------- | ------------------------------------------------------ |
-| `ha_smart_solar_manager_plan_computed`   | Each coordinator refresh after recommendation build | `entry_id`, `mode`, `confidence_score`, `action_count` |
-| `ha_smart_solar_manager_action_executed` | A device action completes successfully              | `entry_id`, `entity_id`, `command`, `dry_run`          |
-| `ha_smart_solar_manager_action_failed`   | A device action raises an exception                 | `entry_id`, `entity_id`, `command`, `error`            |
-| `ha_smart_solar_manager_safety_blocked`  | Execution is blocked by safety checks               | `entry_id`, `reason`                                   |
+| Event                                    | When emitted                                          | Key fields                                                                              |
+| ---------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `ha_smart_solar_manager_plan_computed`   | Each coordinator refresh after recommendation build   | `entry_id`, `mode`, `confidence_score`, `action_count`                                  |
+| `ha_smart_solar_manager_action_executed` | A device action is executed (or simulated in dry-run) | `entry_id`, `entity_id`, `command`, `dry_run`, `attempt`                                |
+| `ha_smart_solar_manager_action_failed`   | A device action raises an exception                   | `entry_id`, `entity_id`, `command`, `error`, `attempt`, `will_retry`                    |
+| `ha_smart_solar_manager_safety_blocked`  | Execution is blocked by safety checks                 | `entry_id`, `reason` (`manual_override_enabled`, `auto_control_disabled`, `no_actions`) |
 
 ---
 

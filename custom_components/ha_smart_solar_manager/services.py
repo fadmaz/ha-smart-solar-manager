@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -14,10 +15,14 @@ _LOGGER = logging.getLogger(__name__)
 
 from .const import (
     ATTR_ACTIONS,
+    DEFAULT_ACTION_MAX_RETRIES,
+    DEFAULT_ACTION_RETRY_DELAY_SECONDS,
     DOMAIN,
     EVENT_ACTION_EXECUTED,
     EVENT_ACTION_FAILED,
     EVENT_SAFETY_BLOCKED,
+    OPT_ACTION_MAX_RETRIES,
+    OPT_ACTION_RETRY_DELAY_SECONDS,
     OPT_AUTO_CONTROL_ENABLED,
     OPT_DRY_RUN,
     SERVICE_EXECUTE_PLAN,
@@ -39,7 +44,7 @@ async def async_register_services(hass: HomeAssistant) -> None:
         }
     )
 
-    async def _iter_target(entry_id: str | None) -> list[Any]:
+    def _iter_target(entry_id: str | None) -> list[Any]:
         entries = hass.data[DOMAIN]["entries"]
         if entry_id:
             coordinator = entries.get(entry_id)
@@ -48,7 +53,7 @@ async def async_register_services(hass: HomeAssistant) -> None:
 
     async def handle_recompute(call: ServiceCall) -> None:
         """Force refresh recommendation data."""
-        targets = await _iter_target(call.data.get("entry_id"))
+        targets = _iter_target(call.data.get("entry_id"))
         for coordinator in targets:
             await coordinator.async_request_refresh()
 
@@ -56,7 +61,7 @@ async def async_register_services(hass: HomeAssistant) -> None:
         """Execute current recommended actions if allowed."""
         force = bool(call.data.get("force", False))
         service_dry_run = call.data.get("dry_run")
-        targets = await _iter_target(call.data.get("entry_id"))
+        targets = _iter_target(call.data.get("entry_id"))
 
         for coordinator in targets:
             entry = coordinator.entry
@@ -65,8 +70,31 @@ async def async_register_services(hass: HomeAssistant) -> None:
             recommendation = data.get("recommendation", {})
             actions = recommendation.get(ATTR_ACTIONS, [])
 
+            if not actions:
+                hass.bus.async_fire(
+                    EVENT_SAFETY_BLOCKED,
+                    {
+                        "entry_id": entry.entry_id,
+                        "reason": "no_actions",
+                    },
+                )
+                continue
+
             auto_control = bool(options.get(OPT_AUTO_CONTROL_ENABLED, False))
             dry_run = bool(options.get(OPT_DRY_RUN, True))
+            max_retries = max(0, min(5, int(options.get(OPT_ACTION_MAX_RETRIES, DEFAULT_ACTION_MAX_RETRIES))))
+            retry_delay_seconds = max(
+                0.0,
+                min(
+                    30.0,
+                    float(
+                        options.get(
+                            OPT_ACTION_RETRY_DELAY_SECONDS,
+                            DEFAULT_ACTION_RETRY_DELAY_SECONDS,
+                        )
+                    ),
+                ),
+            )
             if service_dry_run is not None:
                 dry_run = bool(service_dry_run)
 
@@ -102,40 +130,61 @@ async def async_register_services(hass: HomeAssistant) -> None:
                 if not entity_id or command not in ("turn_on", "turn_off"):
                     continue
                 if dry_run:
-                    continue
-                domain = entity_id.split(".", 1)[0]
-                try:
-                    await hass.services.async_call(
-                        domain,
-                        command,
-                        {"entity_id": entity_id},
-                        blocking=True,
-                    )
                     hass.bus.async_fire(
                         EVENT_ACTION_EXECUTED,
                         {
                             "entry_id": entry.entry_id,
                             "entity_id": entity_id,
                             "command": command,
-                            "dry_run": dry_run,
+                            "dry_run": True,
                         },
                     )
-                except Exception as err:  # noqa: BLE001
-                    _LOGGER.error(
-                        "Failed to execute %s on %s: %s",
-                        command,
-                        entity_id,
-                        err,
-                    )
-                    hass.bus.async_fire(
-                        EVENT_ACTION_FAILED,
-                        {
-                            "entry_id": entry.entry_id,
-                            "entity_id": entity_id,
-                            "command": command,
-                            "error": str(err),
-                        },
-                    )
+                    continue
+                domain = entity_id.split(".", 1)[0]
+                for attempt in range(max_retries + 1):
+                    try:
+                        await hass.services.async_call(
+                            domain,
+                            command,
+                            {"entity_id": entity_id},
+                            blocking=True,
+                        )
+                        hass.bus.async_fire(
+                            EVENT_ACTION_EXECUTED,
+                            {
+                                "entry_id": entry.entry_id,
+                                "entity_id": entity_id,
+                                "command": command,
+                                "dry_run": dry_run,
+                                "attempt": attempt + 1,
+                            },
+                        )
+                        break
+                    except Exception as err:  # noqa: BLE001
+                        final_attempt = attempt >= max_retries
+                        _LOGGER.error(
+                            "Failed to execute %s on %s (attempt %s/%s): %s",
+                            command,
+                            entity_id,
+                            attempt + 1,
+                            max_retries + 1,
+                            err,
+                        )
+                        hass.bus.async_fire(
+                            EVENT_ACTION_FAILED,
+                            {
+                                "entry_id": entry.entry_id,
+                                "entity_id": entity_id,
+                                "command": command,
+                                "error": str(err),
+                                "attempt": attempt + 1,
+                                "will_retry": not final_attempt,
+                            },
+                        )
+                        if final_attempt:
+                            break
+                        if retry_delay_seconds > 0:
+                            await asyncio.sleep(retry_delay_seconds)
 
     hass.services.async_register(
         DOMAIN,
