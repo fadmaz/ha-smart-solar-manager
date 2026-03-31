@@ -13,7 +13,9 @@ from .const import (
     CONF_BATTERY_SOC_ENTITY,
     CONF_CONTROLLABLE_DEVICES,
     CONF_FORECAST_NEXT_HOUR_ENTITY,
+    CONF_FORECAST_REMAINING_TODAY_ENTITY,
     CONF_FORECAST_TODAY_ENTITY,
+    CONF_FORECAST_TOMORROW_ENTITY,
     CONF_GRID_EXPORT_ENTITY,
     CONF_GRID_IMPORT_ENTITY,
     CONF_LOAD_POWER_ENTITY,
@@ -60,8 +62,14 @@ class SmartSolarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "forecast_today_kwh": self._state_float(
                 self.entry.data.get(CONF_FORECAST_TODAY_ENTITY)
             ),
+            "forecast_remaining_today_kwh": self._state_float(
+                self.entry.data.get(CONF_FORECAST_REMAINING_TODAY_ENTITY)
+            ),
             "forecast_next_hour_w": self._state_float(
                 self.entry.data.get(CONF_FORECAST_NEXT_HOUR_ENTITY)
+            ),
+            "forecast_tomorrow_kwh": self._state_float(
+                self.entry.data.get(CONF_FORECAST_TOMORROW_ENTITY)
             ),
             "pv_power_w": self._state_float(self.entry.data.get(CONF_PV_POWER_ENTITY)),
             "load_power_w": self._state_float(self.entry.data.get(CONF_LOAD_POWER_ENTITY)),

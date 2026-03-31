@@ -6,6 +6,17 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-31
+
+### Added
+
+- Two new forecast entity fields in config flow: `Forecast remaining today (kWh)` and `Forecast tomorrow (kWh)`.
+- Both new entities are read by the coordinator and passed to the optimizer as `forecast_remaining_today_kwh` and `forecast_tomorrow_kwh`.
+
+### Removed
+
+- Smart entity auto-detection (keyword matching) — all entity fields now start blank and require manual selection.
+
 ## [0.3.0] - 2026-03-31
 
 ### Fixed

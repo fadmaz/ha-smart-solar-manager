@@ -19,11 +19,15 @@
         "description": "Step 2 of 4: Connect Forecast.Solar entities. At least one field is required.",
         "data": {
           "forecast_today_entity": "Forecast today entity (kWh)",
-          "forecast_next_hour_entity": "Forecast next hour entity (W)"
+          "forecast_remaining_today_entity": "Forecast remaining today entity (kWh)",
+          "forecast_next_hour_entity": "Forecast next hour entity (W)",
+          "forecast_tomorrow_entity": "Forecast tomorrow entity (kWh)"
         },
         "data_description": {
-          "forecast_today_entity": "Example: sensor.forecast_solar_estimated_energy_production_today. Use the entity_id from Developer Tools -> States.",
-          "forecast_next_hour_entity": "Example: sensor.forecast_solar_next_hour. Helps short-term load shifting decisions."
+          "forecast_today_entity": "Total expected solar production for today.",
+          "forecast_remaining_today_entity": "Remaining expected solar production for the rest of today.",
+          "forecast_next_hour_entity": "Expected solar production in the next hour. Helps short-term load shifting decisions.",
+          "forecast_tomorrow_entity": "Total expected solar production for tomorrow."
         }
       },
       "energy": {
