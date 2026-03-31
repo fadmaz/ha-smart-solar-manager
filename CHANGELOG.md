@@ -6,6 +6,18 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-31
+
+### Added
+
+- Exact-match auto-selection for forecast entities when these sensors exist: `sensor.energy_production_today`, `sensor.energy_production_today_remaining`, `sensor.energy_next_hour`, and `sensor.energy_production_tomorrow`.
+
+### Changed
+
+- Power entities are now normalized automatically from `W`, `kW`, or `MW` into watts before optimization.
+- Energy entities are now normalized automatically from `Wh`, `kWh`, or `MWh` into kWh before optimization.
+- Config flow descriptions now explain that unit conversion is handled automatically.
+
 ## [0.4.0] - 2026-03-31
 
 ### Added

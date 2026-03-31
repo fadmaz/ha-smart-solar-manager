@@ -24,10 +24,10 @@
           "forecast_tomorrow_entity": "Forecast tomorrow entity (kWh)"
         },
         "data_description": {
-          "forecast_today_entity": "Total expected solar production for today.",
-          "forecast_remaining_today_entity": "Remaining expected solar production for the rest of today.",
-          "forecast_next_hour_entity": "Expected solar production in the next hour. Helps short-term load shifting decisions.",
-          "forecast_tomorrow_entity": "Total expected solar production for tomorrow."
+          "forecast_today_entity": "Total expected solar production for today. Wh and kWh values are handled automatically.",
+          "forecast_remaining_today_entity": "Remaining expected solar production for the rest of today. Wh and kWh values are handled automatically.",
+          "forecast_next_hour_entity": "Expected solar production in the next hour. W, kW, and MW values are converted automatically.",
+          "forecast_tomorrow_entity": "Total expected solar production for tomorrow. Wh and kWh values are handled automatically."
         }
       },
       "energy": {
@@ -41,11 +41,11 @@
           "grid_export_entity": "Grid export entity (W)"
         },
         "data_description": {
-          "pv_power_entity": "Current solar production power. Example: sensor.pv_power.",
-          "load_power_entity": "Current house load/consumption power. Example: sensor.load_power.",
+          "pv_power_entity": "Current solar production power. W, kW, and MW values are converted automatically.",
+          "load_power_entity": "Current house load/consumption power. W, kW, and MW values are converted automatically.",
           "battery_soc_entity": "Battery charge level as percentage (0-100).",
-          "grid_import_entity": "Current power imported from grid. Positive watts preferred.",
-          "grid_export_entity": "Current power exported to grid. Positive watts preferred."
+          "grid_import_entity": "Current power imported from grid. W, kW, and MW values are converted automatically.",
+          "grid_export_entity": "Current power exported to grid. W, kW, and MW values are converted automatically."
         }
       },
       "control": {

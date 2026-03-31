@@ -44,6 +44,20 @@ from .const import (
 )
 
 
+FORECAST_ENTITY_DEFAULTS = {
+    CONF_FORECAST_TODAY_ENTITY: "sensor.energy_production_today",
+    CONF_FORECAST_REMAINING_TODAY_ENTITY: "sensor.energy_production_today_remaining",
+    CONF_FORECAST_NEXT_HOUR_ENTITY: "sensor.energy_next_hour",
+    CONF_FORECAST_TOMORROW_ENTITY: "sensor.energy_production_tomorrow",
+}
+
+
+def _forecast_default_entity(hass: Any, field_name: str) -> str:
+    """Return the exact forecast entity default if it exists."""
+    entity_id = FORECAST_ENTITY_DEFAULTS[field_name]
+    return entity_id if hass.states.get(entity_id) is not None else ""
+
+
 class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Smart Solar Manager."""
 
@@ -93,6 +107,14 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle forecast fields group."""
         errors: dict[str, str] = {}
 
+        forecast_defaults = {
+            field_name: self._draft_data.get(
+                field_name,
+                _forecast_default_entity(self.hass, field_name),
+            )
+            for field_name in FORECAST_ENTITY_DEFAULTS
+        }
+
         if user_input is not None:
             forecast_today = user_input.get(CONF_FORECAST_TODAY_ENTITY, "")
             forecast_next_hour = user_input.get(CONF_FORECAST_NEXT_HOUR_ENTITY, "")
@@ -113,25 +135,25 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(
                     CONF_FORECAST_TODAY_ENTITY,
-                    default=self._draft_data.get(CONF_FORECAST_TODAY_ENTITY, ""),
+                    default=forecast_defaults[CONF_FORECAST_TODAY_ENTITY],
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Optional(
                     CONF_FORECAST_REMAINING_TODAY_ENTITY,
-                    default=self._draft_data.get(CONF_FORECAST_REMAINING_TODAY_ENTITY, ""),
+                    default=forecast_defaults[CONF_FORECAST_REMAINING_TODAY_ENTITY],
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Optional(
                     CONF_FORECAST_NEXT_HOUR_ENTITY,
-                    default=self._draft_data.get(CONF_FORECAST_NEXT_HOUR_ENTITY, ""),
+                    default=forecast_defaults[CONF_FORECAST_NEXT_HOUR_ENTITY],
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Optional(
                     CONF_FORECAST_TOMORROW_ENTITY,
-                    default=self._draft_data.get(CONF_FORECAST_TOMORROW_ENTITY, ""),
+                    default=forecast_defaults[CONF_FORECAST_TOMORROW_ENTITY],
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
