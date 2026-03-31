@@ -15,6 +15,9 @@ _LOGGER = logging.getLogger(__name__)
 from .const import (
     ATTR_ACTIONS,
     DOMAIN,
+    EVENT_ACTION_EXECUTED,
+    EVENT_ACTION_FAILED,
+    EVENT_SAFETY_BLOCKED,
     OPT_AUTO_CONTROL_ENABLED,
     OPT_DRY_RUN,
     SERVICE_EXECUTE_PLAN,
@@ -74,9 +77,23 @@ async def async_register_services(hass: HomeAssistant) -> None:
             if override_entity_id:
                 state = hass.states.get(override_entity_id)
                 if state and state.state.lower() == "on" and not force:
+                    hass.bus.async_fire(
+                        EVENT_SAFETY_BLOCKED,
+                        {
+                            "entry_id": entry.entry_id,
+                            "reason": "manual_override_enabled",
+                        },
+                    )
                     continue
 
             if not auto_control and not force:
+                hass.bus.async_fire(
+                    EVENT_SAFETY_BLOCKED,
+                    {
+                        "entry_id": entry.entry_id,
+                        "reason": "auto_control_disabled",
+                    },
+                )
                 continue
 
             for action in actions:
@@ -94,12 +111,30 @@ async def async_register_services(hass: HomeAssistant) -> None:
                         {"entity_id": entity_id},
                         blocking=True,
                     )
+                    hass.bus.async_fire(
+                        EVENT_ACTION_EXECUTED,
+                        {
+                            "entry_id": entry.entry_id,
+                            "entity_id": entity_id,
+                            "command": command,
+                            "dry_run": dry_run,
+                        },
+                    )
                 except Exception as err:  # noqa: BLE001
                     _LOGGER.error(
                         "Failed to execute %s on %s: %s",
                         command,
                         entity_id,
                         err,
+                    )
+                    hass.bus.async_fire(
+                        EVENT_ACTION_FAILED,
+                        {
+                            "entry_id": entry.entry_id,
+                            "entity_id": entity_id,
+                            "command": command,
+                            "error": str(err),
+                        },
                     )
 
     hass.services.async_register(

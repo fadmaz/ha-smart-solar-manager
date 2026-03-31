@@ -25,6 +25,7 @@ from .const import (
     CONF_PV_POWER_ENTITY,
     CONF_SCAN_INTERVAL_MINUTES,
     DOMAIN,
+    EVENT_PLAN_COMPUTED,
     UPDATE_INTERVAL_FALLBACK,
 )
 from .optimizer import build_recommendation
@@ -178,6 +179,16 @@ class SmartSolarCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             inputs=inputs,
             options=self.entry.options,
             controllable_devices=controllable_devices,
+        )
+
+        self.hass.bus.async_fire(
+            EVENT_PLAN_COMPUTED,
+            {
+                "entry_id": self.entry.entry_id,
+                "mode": recommendation.get("mode", "unknown"),
+                "confidence_score": recommendation.get("confidence_score", 0),
+                "action_count": len(recommendation.get("actions", [])),
+            },
         )
 
         return {

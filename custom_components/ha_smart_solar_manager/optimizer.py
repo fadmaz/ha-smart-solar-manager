@@ -70,6 +70,22 @@ def _safe_float(value: Any, fallback: float = 0.0) -> float:
         return fallback
 
 
+def _confidence_score(inputs: Mapping[str, Any]) -> int:
+    """Return recommendation confidence from data completeness (0-100)."""
+    tracked_keys = (
+        "forecast_today_kwh",
+        "forecast_remaining_today_kwh",
+        "forecast_next_hour_w",
+        "pv_power_w",
+        "load_power_w",
+        "battery_soc",
+        "grid_import_w",
+        "grid_export_w",
+    )
+    available = sum(1 for key in tracked_keys if inputs.get(key) is not None)
+    return int(round((available / len(tracked_keys)) * 100))
+
+
 def build_recommendation(
     inputs: Mapping[str, Any], options: Mapping[str, Any], controllable_devices: list[str]
 ) -> dict[str, Any]:
@@ -139,6 +155,7 @@ def build_recommendation(
         "reason": reason,
         "actions": actions,
         "estimated_savings": estimated_savings,
+        "confidence_score": _confidence_score(inputs),
         "solar_surplus_w": round(solar_surplus_w, 2),
         "weighted_signal": round(weighted_signal, 2),
         "weights": weights,

@@ -6,6 +6,12 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+### Added
+
+- **optimizer.py** - Added `confidence_score` to recommendation payload (0-100) based on input completeness.
+- **sensor.py** - Added `Smart Solar Confidence Score` sensor to expose recommendation confidence.
+- **coordinator.py / services.py** - Added lifecycle bus events for `plan_computed`, `action_executed`, `action_failed`, and `safety_blocked`.
+
 ## [0.11.0] - 2026-03-31
 
 ### Fixed

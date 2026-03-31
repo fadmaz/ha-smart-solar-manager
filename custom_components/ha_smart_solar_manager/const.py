@@ -80,5 +80,11 @@ ATTR_MODE = "mode"
 ATTR_REASON = "reason"
 ATTR_ACTIONS = "actions"
 ATTR_ESTIMATED_SAVINGS = "estimated_savings"
+ATTR_CONFIDENCE_SCORE = "confidence_score"
+
+EVENT_PLAN_COMPUTED = f"{DOMAIN}_plan_computed"
+EVENT_ACTION_EXECUTED = f"{DOMAIN}_action_executed"
+EVENT_ACTION_FAILED = f"{DOMAIN}_action_failed"
+EVENT_SAFETY_BLOCKED = f"{DOMAIN}_safety_blocked"
 
 UPDATE_INTERVAL_FALLBACK = timedelta(minutes=DEFAULT_SCAN_INTERVAL_MINUTES)

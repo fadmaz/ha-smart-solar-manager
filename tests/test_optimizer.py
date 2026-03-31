@@ -263,3 +263,57 @@ def test_build_recommendation_savings_calculation() -> None:
     # Estimated savings: (1500 / 1000) * 0.25 = 0.375
     assert result["mode"] == "run_flexible_loads"
     assert result["estimated_savings"] == 0.375
+
+
+def test_build_recommendation_confidence_score_complete_inputs() -> None:
+    """All core inputs present should yield full confidence."""
+    result = build_recommendation(
+        inputs={
+            "forecast_today_kwh": 7.0,
+            "forecast_remaining_today_kwh": 4.0,
+            "forecast_next_hour_w": 900,
+            "pv_power_w": 1200,
+            "load_power_w": 800,
+            "battery_soc": 65,
+            "grid_import_w": 100,
+            "grid_export_w": 50,
+        },
+        options={
+            "battery_min_soc": 20,
+            "grid_price": 0.2,
+            "goal_cost_weight": 40,
+            "goal_self_consumption_weight": 30,
+            "goal_battery_health_weight": 20,
+            "goal_grid_weight": 10,
+        },
+        controllable_devices=[],
+    )
+
+    assert result["confidence_score"] == 100
+
+
+def test_build_recommendation_confidence_score_partial_inputs() -> None:
+    """Sparse inputs should produce reduced confidence."""
+    result = build_recommendation(
+        inputs={
+            "forecast_today_kwh": None,
+            "forecast_remaining_today_kwh": None,
+            "forecast_next_hour_w": None,
+            "pv_power_w": 1200,
+            "load_power_w": 800,
+            "battery_soc": None,
+            "grid_import_w": None,
+            "grid_export_w": None,
+        },
+        options={
+            "battery_min_soc": 20,
+            "grid_price": 0.2,
+            "goal_cost_weight": 40,
+            "goal_self_consumption_weight": 30,
+            "goal_battery_health_weight": 20,
+            "goal_grid_weight": 10,
+        },
+        controllable_devices=[],
+    )
+
+    assert result["confidence_score"] == 25

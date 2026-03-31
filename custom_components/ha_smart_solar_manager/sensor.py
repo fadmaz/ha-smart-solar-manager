@@ -78,6 +78,13 @@ SENSORS: tuple[SmartSolarSensorDescription, ...] = (
         "mdi:gauge",
         SensorStateClass.MEASUREMENT,
     ),
+    SmartSolarSensorDescription(
+        "confidence_score",
+        "Smart Solar Confidence Score",
+        "%",
+        "mdi:check-decagram",
+        SensorStateClass.MEASUREMENT,
+    ),
 )
 
 
@@ -170,6 +177,9 @@ class SmartSolarSensor(CoordinatorEntity[SmartSolarCoordinator], SensorEntity):
             battery_optimization = battery_soc if battery_soc >= 30 else (battery_soc / 30) * 50
             efficiency = (self_consumption_ratio * 0.6 + battery_optimization * 0.4)
             return round(max(0, min(100, efficiency)), 1)
+
+        if self.entity_description.key == "confidence_score":
+            return recommendation.get("confidence_score", 0)
 
         return None
 
