@@ -13,6 +13,7 @@ from homeassistant.helpers import entity_registry as er
 
 _LOGGER = logging.getLogger(__name__)
 
+from .activity import async_log_activity
 from .const import (
     ATTR_ACTIONS,
     DEFAULT_ACTION_MAX_RETRIES,
@@ -78,6 +79,12 @@ async def async_register_services(hass: HomeAssistant) -> None:
                         "reason": "no_actions",
                     },
                 )
+                await async_log_activity(
+                    hass,
+                    entry_id=entry.entry_id,
+                    name=entry.title,
+                    message="Execution blocked: no actions available",
+                )
                 continue
 
             auto_control = bool(options.get(OPT_AUTO_CONTROL_ENABLED, False))
@@ -112,6 +119,12 @@ async def async_register_services(hass: HomeAssistant) -> None:
                             "reason": "manual_override_enabled",
                         },
                     )
+                    await async_log_activity(
+                        hass,
+                        entry_id=entry.entry_id,
+                        name=entry.title,
+                        message="Execution blocked: manual override is enabled",
+                    )
                     continue
 
             if not auto_control and not force:
@@ -121,6 +134,12 @@ async def async_register_services(hass: HomeAssistant) -> None:
                         "entry_id": entry.entry_id,
                         "reason": "auto_control_disabled",
                     },
+                )
+                await async_log_activity(
+                    hass,
+                    entry_id=entry.entry_id,
+                    name=entry.title,
+                    message="Execution blocked: automatic control is disabled",
                 )
                 continue
 
@@ -138,6 +157,12 @@ async def async_register_services(hass: HomeAssistant) -> None:
                             "command": command,
                             "dry_run": True,
                         },
+                    )
+                    await async_log_activity(
+                        hass,
+                        entry_id=entry.entry_id,
+                        name=entry.title,
+                        message=f"Dry run: would {command} {entity_id}",
                     )
                     continue
                 domain = entity_id.split(".", 1)[0]
@@ -158,6 +183,12 @@ async def async_register_services(hass: HomeAssistant) -> None:
                                 "dry_run": dry_run,
                                 "attempt": attempt + 1,
                             },
+                        )
+                        await async_log_activity(
+                            hass,
+                            entry_id=entry.entry_id,
+                            name=entry.title,
+                            message=f"Executed {command} for {entity_id} on attempt {attempt + 1}",
                         )
                         break
                     except Exception as err:  # noqa: BLE001
@@ -180,6 +211,15 @@ async def async_register_services(hass: HomeAssistant) -> None:
                                 "attempt": attempt + 1,
                                 "will_retry": not final_attempt,
                             },
+                        )
+                        await async_log_activity(
+                            hass,
+                            entry_id=entry.entry_id,
+                            name=entry.title,
+                            message=(
+                                f"Action failed: {command} {entity_id} "
+                                f"(attempt {attempt + 1}/{max_retries + 1})"
+                            ),
                         )
                         if final_attempt:
                             break

@@ -182,6 +182,8 @@ class SmartSolarSensor(CoordinatorEntity[SmartSolarCoordinator], SensorEntity):
             return {}
         recommendation = (self.coordinator.data or {}).get("recommendation", {})
         inputs = (self.coordinator.data or {}).get("inputs", {})
+        input_sources = (self.coordinator.data or {}).get("input_sources", {})
+        missing_inputs = (self.coordinator.data or {}).get("missing_inputs", [])
         return {
             "reason": recommendation.get("reason", ""),
             "confidence_score": recommendation.get("confidence_score", 0),
@@ -189,4 +191,6 @@ class SmartSolarSensor(CoordinatorEntity[SmartSolarCoordinator], SensorEntity):
             "weights": recommendation.get("weights", {}),
             "weighted_signal": recommendation.get("weighted_signal", 0),
             "inputs": inputs,
+            "input_sources": input_sources,
+            "missing_inputs": missing_inputs,
         }
