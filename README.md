@@ -1,5 +1,9 @@
 # HA Smart Solar Manager
 
+> [!WARNING]
+> **This integration is not functional yet and is still under active development.**
+> Breaking changes may occur at any time. Do not use it in a production Home Assistant setup.
+
 Smart solar, battery, and grid energy management for Home Assistant using Forecast.Solar and your existing inverter/device entities.
 
 ## What This Integration Does
