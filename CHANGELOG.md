@@ -6,6 +6,16 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-03-31
+
+### Added
+
+- Energy entity fields in the config flow are now pre-filled from your Home Assistant Energy Dashboard configuration where possible.
+
+### Changed
+
+- Energy Signals step text now explains that compatible fields are auto-populated from Energy Dashboard settings.
+
 ## [0.7.0] - 2026-03-31
 
 ### Added

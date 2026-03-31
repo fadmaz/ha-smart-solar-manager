@@ -32,7 +32,7 @@
       },
       "energy": {
         "title": "Energy Signals",
-        "description": "Step 3 of 4: Add live power and battery entities used by the optimizer.",
+        "description": "Step 3 of 4: Add live power and battery entities used by the optimizer. Fields are pre-filled from your Energy Dashboard configuration where possible.",
         "data": {
           "pv_power_entity": "PV power entity",
           "load_power_entity": "Load power entity",

@@ -9,6 +9,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
     CONF_BATTERY_SOC_ENTITY,
@@ -58,15 +59,96 @@ def _forecast_default_entity(hass: Any, field_name: str) -> str:
     return entity_id if hass.states.get(entity_id) is not None else ""
 
 
+async def _detect_from_energy_dashboard(hass: Any) -> dict[str, str]:
+    """Pre-fill entity mappings from the HA Energy Dashboard configuration."""
+    detected: dict[str, str] = {}
+    try:
+        from homeassistant.components.energy.data import async_get_manager  # noqa: PLC0415
+
+        manager = await async_get_manager(hass)
+        if not manager.data:
+            return detected
+    except Exception:  # noqa: BLE001
+        return detected
+
+    registry = er.async_get(hass)
+
+    def _config_entry_for_entity(entity_id: str) -> str | None:
+        entry = registry.async_get(entity_id)
+        return entry.config_entry_id if entry else None
+
+    def _power_entities_for_config_entry(config_entry_id: str, keywords: list[str]) -> str | None:
+        """Find a power-class sensor from a config entry, preferring keyword matches."""
+        candidates: list[str] = []
+        for reg_entry in registry.entities.values():
+            if reg_entry.config_entry_id != config_entry_id:
+                continue
+            state = hass.states.get(reg_entry.entity_id)
+            if state is None:
+                continue
+            if state.attributes.get("device_class") == "power":
+                candidates.append(reg_entry.entity_id)
+        if not candidates:
+            return None
+        for keyword in keywords:
+            for c in candidates:
+                name = (hass.states.get(c).attributes.get("friendly_name") or c).lower()
+                if keyword in name:
+                    return c
+        return candidates[0]
+
+    for source in manager.data.get("energy_sources", []):
+        stype = source.get("type")
+
+        if stype == "battery":
+            soc = source.get("stat_percentage")
+            if soc and CONF_BATTERY_SOC_ENTITY not in detected:
+                detected[CONF_BATTERY_SOC_ENTITY] = soc
+
+        elif stype == "solar" and CONF_PV_POWER_ENTITY not in detected:
+            energy_entity = source.get("stat_energy_from")
+            entry_id = _config_entry_for_entity(energy_entity) if energy_entity else None
+            if entry_id:
+                found = _power_entities_for_config_entry(
+                    entry_id, ["pv", "solar", "generation", "production"]
+                )
+                if found:
+                    detected[CONF_PV_POWER_ENTITY] = found
+
+        elif stype == "grid":
+            for flow in source.get("flow_from", []):
+                energy_entity = flow.get("stat_energy_from")
+                entry_id = _config_entry_for_entity(energy_entity) if energy_entity else None
+                if entry_id and CONF_GRID_IMPORT_ENTITY not in detected:
+                    found = _power_entities_for_config_entry(
+                        entry_id, ["import", "grid", "from grid", "consumed"]
+                    )
+                    if found:
+                        detected[CONF_GRID_IMPORT_ENTITY] = found
+            for flow in source.get("flow_to", []):
+                energy_entity = flow.get("stat_energy_to")
+                entry_id = _config_entry_for_entity(energy_entity) if energy_entity else None
+                if entry_id and CONF_GRID_EXPORT_ENTITY not in detected:
+                    found = _power_entities_for_config_entry(
+                        entry_id, ["export", "to grid", "feed"]
+                    )
+                    if found:
+                        detected[CONF_GRID_EXPORT_ENTITY] = found
+
+    return detected
+
+
 class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Smart Solar Manager."""
 
     VERSION = 1
     _draft_data: dict[str, Any]
+    _energy_hints: dict[str, str]
 
     def __init__(self) -> None:
         """Initialize config flow."""
         self._draft_data = {}
+        self._energy_hints = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Handle general settings step."""
@@ -163,6 +245,9 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_energy(self, user_input: dict[str, Any] | None = None):
         """Handle energy entity fields group."""
+        if not self._energy_hints:
+            self._energy_hints = await _detect_from_energy_dashboard(self.hass)
+
         if user_input is not None:
             self._draft_data[CONF_PV_POWER_ENTITY] = user_input.get(CONF_PV_POWER_ENTITY, "")
             self._draft_data[CONF_LOAD_POWER_ENTITY] = user_input.get(CONF_LOAD_POWER_ENTITY, "")
@@ -175,7 +260,10 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(
                     CONF_PV_POWER_ENTITY,
-                    default=self._draft_data.get(CONF_PV_POWER_ENTITY, ""),
+                    default=self._draft_data.get(
+                        CONF_PV_POWER_ENTITY,
+                        self._energy_hints.get(CONF_PV_POWER_ENTITY, ""),
+                    ),
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
@@ -187,19 +275,28 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
                 vol.Optional(
                     CONF_BATTERY_SOC_ENTITY,
-                    default=self._draft_data.get(CONF_BATTERY_SOC_ENTITY, ""),
+                    default=self._draft_data.get(
+                        CONF_BATTERY_SOC_ENTITY,
+                        self._energy_hints.get(CONF_BATTERY_SOC_ENTITY, ""),
+                    ),
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Optional(
                     CONF_GRID_IMPORT_ENTITY,
-                    default=self._draft_data.get(CONF_GRID_IMPORT_ENTITY, ""),
+                    default=self._draft_data.get(
+                        CONF_GRID_IMPORT_ENTITY,
+                        self._energy_hints.get(CONF_GRID_IMPORT_ENTITY, ""),
+                    ),
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Optional(
                     CONF_GRID_EXPORT_ENTITY,
-                    default=self._draft_data.get(CONF_GRID_EXPORT_ENTITY, ""),
+                    default=self._draft_data.get(
+                        CONF_GRID_EXPORT_ENTITY,
+                        self._energy_hints.get(CONF_GRID_EXPORT_ENTITY, ""),
+                    ),
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
