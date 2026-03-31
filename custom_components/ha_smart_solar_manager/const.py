@@ -3,7 +3,7 @@
 from datetime import timedelta
 
 DOMAIN = "ha_smart_solar_manager"
-PLATFORMS = ["sensor"]
+PLATFORMS = ["sensor", "switch"]
 
 DEFAULT_NAME = "Smart Solar Manager"
 DEFAULT_SCAN_INTERVAL_MINUTES = 15

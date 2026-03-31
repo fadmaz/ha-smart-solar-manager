@@ -9,7 +9,7 @@ Smart solar, battery, and grid energy management for Home Assistant using Foreca
 - Uses user-selected entities so it stays generic across inverter and device integrations.
 - Exposes smart sensors for dashboard cards and automation logic.
 
-## Current State (v0.8.1)
+## Current State (v0.9.0)
 
 - Config flow for mapping Forecast.Solar and energy entities.
 - Exact-match auto-fill for the four supported forecast sensors when they exist.
@@ -31,6 +31,8 @@ Smart solar, battery, and grid energy management for Home Assistant using Foreca
   - Smart Solar Next Action
   - Smart Solar Estimated Savings (Hour)
   - Smart Solar Surplus
+- Switch:
+  - **Manual Override** — flip ON to pause automatic execution; state survives restarts.
 
 ## Installation (HACS Custom Repository)
 
@@ -70,7 +72,6 @@ Add the integration from Home Assistant UI:
      - Dedicated export sensor (positive watts only)
      - Signed net-grid sensor (positive = export, negative = import)
      - Leave blank if you use a signed import sensor or have no export data
-   - Manual override boolean entity
    - Controllable device entities (multi-entity selector)
 
 When Home Assistant Energy Dashboard is configured, the integration attempts to pre-fill these energy fields automatically:
@@ -98,8 +99,8 @@ Then open integration options to tune:
 
 - Automatic control is disabled by default.
 - Dry-run is enabled by default.
-- Manual override entity can block execution.
-- `execute_plan` can be forced explicitly per call.
+- A **Manual Override** switch (`switch.<name>_manual_override`) is created automatically. Flip it ON to block automatic execution without disabling the integration.
+- `execute_plan` can be forced explicitly per call (bypasses the manual override switch).
 
 ## Dashboard
 

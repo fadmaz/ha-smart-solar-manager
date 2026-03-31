@@ -50,13 +50,11 @@
       },
       "control": {
         "title": "Control and Overrides",
-        "description": "Step 4 of 4: Optional control entities for automation mode.",
+        "description": "Step 4 of 4: Select controllable devices for automation mode. A \"Manual Override\" switch will be created automatically for you.",
         "data": {
-          "manual_override_entity": "Manual override boolean entity (optional)",
           "controllable_devices": "Controllable device entities (optional)"
         },
         "data_description": {
-          "manual_override_entity": "If this boolean is ON, automatic action execution is blocked unless forced.",
           "controllable_devices": "Select switch, climate, or other entities to control during solar surplus."
         }
       }

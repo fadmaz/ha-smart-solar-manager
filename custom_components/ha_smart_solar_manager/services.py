@@ -7,10 +7,10 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
     ATTR_ACTIONS,
-    CONF_MANUAL_OVERRIDE_ENTITY,
     DOMAIN,
     OPT_AUTO_CONTROL_ENABLED,
     OPT_DRY_RUN,
@@ -64,9 +64,12 @@ async def async_register_services(hass: HomeAssistant) -> None:
             if service_dry_run is not None:
                 dry_run = bool(service_dry_run)
 
-            manual_override_entity = entry.data.get(CONF_MANUAL_OVERRIDE_ENTITY)
-            if manual_override_entity:
-                state = hass.states.get(manual_override_entity)
+            registry = er.async_get(hass)
+            override_entity_id = registry.async_get_entity_id(
+                "switch", DOMAIN, f"{entry.entry_id}_manual_override"
+            )
+            if override_entity_id:
+                state = hass.states.get(override_entity_id)
                 if state and state.state.lower() == "on" and not force:
                     continue
 

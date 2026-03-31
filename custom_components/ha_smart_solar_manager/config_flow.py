@@ -21,7 +21,6 @@ from .const import (
     CONF_GRID_EXPORT_ENTITY,
     CONF_GRID_IMPORT_ENTITY,
     CONF_LOAD_POWER_ENTITY,
-    CONF_MANUAL_OVERRIDE_ENTITY,
     CONF_NAME,
     CONF_PV_POWER_ENTITY,
     CONF_SCAN_INTERVAL_MINUTES,
@@ -477,9 +476,6 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_control(self, user_input: dict[str, Any] | None = None):
         """Handle control and override fields group."""
         if user_input is not None:
-            self._draft_data[CONF_MANUAL_OVERRIDE_ENTITY] = user_input.get(
-                CONF_MANUAL_OVERRIDE_ENTITY, ""
-            )
             self._draft_data[CONF_CONTROLLABLE_DEVICES] = user_input.get(
                 CONF_CONTROLLABLE_DEVICES, []
             )
@@ -496,19 +492,12 @@ class SmartSolarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_BATTERY_SOC_ENTITY: self._draft_data.get(CONF_BATTERY_SOC_ENTITY, ""),
                 CONF_GRID_IMPORT_ENTITY: self._draft_data.get(CONF_GRID_IMPORT_ENTITY, ""),
                 CONF_GRID_EXPORT_ENTITY: self._draft_data.get(CONF_GRID_EXPORT_ENTITY, ""),
-                CONF_MANUAL_OVERRIDE_ENTITY: self._draft_data.get(CONF_MANUAL_OVERRIDE_ENTITY, ""),
                 CONF_CONTROLLABLE_DEVICES: self._draft_data.get(CONF_CONTROLLABLE_DEVICES, []),
             }
             return self.async_create_entry(title=payload[CONF_NAME], data=payload)
 
         schema = vol.Schema(
             {
-                vol.Optional(
-                    CONF_MANUAL_OVERRIDE_ENTITY,
-                    default=self._draft_data.get(CONF_MANUAL_OVERRIDE_ENTITY, ""),
-                ): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="input_boolean")
-                ),
                 vol.Optional(
                     CONF_CONTROLLABLE_DEVICES,
                     default=self._draft_data.get(CONF_CONTROLLABLE_DEVICES, []),

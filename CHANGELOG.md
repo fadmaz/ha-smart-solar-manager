@@ -6,6 +6,17 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-03-31
+
+### Added
+
+- The integration now creates its own **Manual Override** switch entity (`switch.<name>_manual_override`) automatically. No external `input_boolean` helper is required.
+- Switch state is restored on Home Assistant restart via `RestoreEntity`.
+
+### Removed
+
+- `Manual override boolean entity` field removed from the config flow. Existing entries that had an external entity configured will use the new built-in switch instead.
+
 ## [0.8.1] - 2026-03-31
 
 ### Fixed
