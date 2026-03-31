@@ -6,6 +6,15 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-31
+
+### Added
+
+- Entity selector dropdowns for all entity field mappings in config flow.
+- Smart entity auto-detection using keyword matching on entity IDs and friendly names.
+- Pre-populated default values from detected entities in configuration forms.
+- Improved configuration UI with searchable entity dropdowns for sensor and input_boolean domains.
+
 ## [0.1.0] - 2026-03-30
 
 ### Added
